@@ -25,7 +25,8 @@ class BubbleNucleation:
         #    * (beta1*delta + beta2*delta**2 + beta3*delta**3) / power(self.veff.a4(T), 1.5) / 81 / T
 
     def rate(self, T):
-        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-self.bounce_action(T)))
+        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-self.bounce_action(T))) \
+            * np.heaviside(T - self.veff.T0, 0.0) * np.heaviside(self.veff.Tc - T, 0.0)
         #return T**4 * np.exp(-self.bounce_action(T))
 
     def hubble2(self, T):
@@ -37,9 +38,9 @@ class BubbleNucleation:
     def get_Tstar(self):
         # Scan from T0 up to find where Gamma / H^4 = 1
         def bubble_rate(T):
-            return self.rate(T) / self.hubble2(T)**2 - 1.0
+            return ((self.rate(T) / self.hubble2(T)**2) - 1.0)
         
-        res = fsolve(bubble_rate, [self.veff.T0, self.veff.Tc])
+        res = fsolve(bubble_rate, [(self.veff.Tc + self.veff.T0)/2])
         return res[0]
 
     def alpha(self):

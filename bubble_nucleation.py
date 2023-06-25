@@ -45,11 +45,15 @@ class BubbleNucleation:
 
     def alpha(self):
         # Latent heat
-        
         Tstar = self.Tstar
-        # get dVdT at Tstar, phi_min
-        # Get deltaV
-        # return alpha
+
+        prefactor = 30 / pi**2 / GSTAR_SM / Tstar**4
+        phi_plus = self.veff.phi_plus(Tstar)
+
+        deltaV = -self.veff(phi_plus, Tstar)
+        dVdT = (self.veff(phi_plus, 1.001*Tstar) - self.veff(phi_plus, 0.999*Tstar))/(1.001 * Tstar - 0.999 * Tstar)
+        
+        return -prefactor * (abs(deltaV) - abs(Tstar * dVdT))
 
     def betaByHstar(self):
         Tstar = self.Tstar

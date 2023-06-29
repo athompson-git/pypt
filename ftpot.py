@@ -38,8 +38,8 @@ class VFT:
         return abs(res[0])
     
     def get_Tc(self):
-        res = fsolve(self.Veff0Min, [self.T0, 2*self.T0])
-        return abs(res[1])
+        res = fsolve(self.Veff0Min, [self.T0])
+        return abs(res[0])
     
     def Veff0Min(self, T):
         return self.a2(T) * self.phi_plus(T)**2 + self.a3(T) * self.phi_plus(T)**3 + self.a4(T) * self.phi_plus(T)**4
@@ -119,12 +119,12 @@ class VEffMarfatia2(VFT):
         self.T0 = self.get_T0()
         self.Tc = self.get_Tc()
     
-    def phi_plus(self, T0):
+    def phi_plus0(self, T0):
         return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0**2))/(2*self.lam)
 
     def get_T0(self):
         def root_func(T0):
-            return self.b - 0.5 * self.phi_plus(T0)**2 * (self.d*T0**2 + 0.5*self.c*self.phi_plus(T0))
+            return self.b - 0.5 * self.phi_plus0(T0)**2 * (self.d*T0**2 + 0.5*self.c*self.phi_plus0(T0))
         
         res = fsolve(root_func, [1.0])
         return res[0]

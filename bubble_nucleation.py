@@ -1,5 +1,7 @@
 # Solves for bubble nucleation dynamic params based on bounce action and effective potential
 
+import warnings
+
 from .constants import *
 from .pt_math import *
 
@@ -9,6 +11,8 @@ class BubbleNucleation:
     def __init__(self, veff: VFT):
         self.veff = veff
         self.Tstar = self.get_Tstar()
+
+        # init params
 
     def fx_bounce_action(self, x):
         return 1 + 0.25*x * (1 + 2.4/(1-x) + 0.26 / (1-x)**2)
@@ -46,28 +50,48 @@ class BubbleNucleation:
     def alpha(self):
         # Latent heat
         Tstar = self.Tstar
-        deltaT = 0.00000001*Tstar
+        deltaT = 0.001*Tstar
 
-        prefactor = 30 / pi**2 / GSTAR_SM / Tstar**4
-        print(prefactor)
+        prefactor = 30 / pi**2 / (GSTAR_SM) / Tstar**4
         phi_plus = self.veff.phi_plus(Tstar)
 
         deltaV = -self.veff(phi_plus, Tstar)
-        dVdT = (self.veff(phi_plus, Tstar+deltaT) - self.veff(phi_plus, Tstar-deltaT))/(deltaT)
-        print(deltaV, Tstar*dVdT)
-        return prefactor * (deltaV) #+ Tstar * dVdT)
+        dVdT = (self.veff(phi_plus, Tstar+deltaT) - self.veff(phi_plus, Tstar))/(deltaT)
+        return prefactor * (deltaV + Tstar * dVdT / 4)
 
     def betaByHstar(self):
         Tstar = self.Tstar
         deltaT = 0.00000001*Tstar
         
         # Get the derivative of S3/T
-        dSdT = (self.bounce_action(Tstar+deltaT) - self.bounce_action(Tstar-deltaT))/(deltaT)
+        dSdT = (self.bounce_action(Tstar+deltaT) - self.bounce_action(Tstar))/(deltaT)
         return Tstar * dSdT
 
     def vw(self):
         alpha = self.alpha()
         return (1/sqrt(3) + sqrt(alpha**2 + 2*alpha/3))/(1+alpha)
+    
+    def kappa(self):
+        alpha = self.alpha()
+        vw = self.vw()
 
+        if (alpha > 10.0) or (alpha < 1.0e-3):
+            warnings.warn('alpha = {} and exceeds bounds for kappa (kinetic energy coefficient) precision.'.format(alpha), DeprecationWarning)
+        
+        # TODO: check if subsonic deflagration
+
+
+        # TODO: check if detonation
+    
+    ### Gravitational Wave Spectra Params
+    def f_peak(self):
+        # returns peak frequency in Hz
+        return (1.9e-5 / self.vw()) * self.betaByHstar() * (self.Tstar / 1.0e5) * power(GSTAR_SM/100, 1/6)
+
+    def sw(self, f):
+        return power(f/self.f_peak(), 3) * power(7/(4 + 3*(f/self.f_peak())), 7/2)
+
+    def omega(self):
+        pass
 
 

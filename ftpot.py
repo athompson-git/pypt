@@ -31,6 +31,7 @@ class VFT:
         return 1.0
 
     def phi_plus(self, T):
+        # TODO: add exception handling if FOPT is not found
         return np.real(-3*self.a3(T) + sqrt(9*self.a3(T)**2 - 32*self.a4(T)*self.a2(T)))/(8*self.a4(T))
 
     def get_T0(self, T_range=[1.0, 100.0]):

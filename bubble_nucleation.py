@@ -3,7 +3,7 @@
 import warnings
 
 from .constants import *
-from .pt_math import *
+from .cosmology_functions import *
 
 from .ftpot import *
 
@@ -13,6 +13,9 @@ class BubbleNucleation:
         self.Tstar = self.get_Tstar()
 
         # init params
+    
+    def set_params(self):
+        self.Tstar = self.get_Tstar()
 
     def fx_bounce_action(self, x):
         return 1 + 0.25*x * (1 + 2.4/(1-x) + 0.26 / (1-x)**2)
@@ -30,7 +33,6 @@ class BubbleNucleation:
 
     def rate(self, T):
         return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
-        #return T**4 * np.exp(-self.bounce_action(T))
 
     def hubble2(self, T):
         return pi**2 * GSTAR_SM * T**4 / 90 / M_PL**2  + abs((self.veff.Veff0Min(T)*3/M_PL**2))
@@ -40,11 +42,12 @@ class BubbleNucleation:
     
     def get_Tstar(self):
         # Scan from T0 up to find where Gamma / H^4 = 1
+        # TODO: scan from T=0 as not all potentials have a negative mass term
         def bubble_rate(T):
-            clips =  np.heaviside(T - self.veff.T0, 0.0) * np.heaviside(self.veff.Tc - T, 0.0)
+            clips =  np.heaviside(self.veff.Tc - T, 0.0)
             return (clips*(self.rate(T) / self.hubble2(T)**2) - 1.0)
         
-        res = fsolve(bubble_rate, [(self.veff.Tc + self.veff.T0)/2])
+        res = fsolve(bubble_rate, [(self.veff.Tc)/2])
         return res[0]
 
     def alpha(self):

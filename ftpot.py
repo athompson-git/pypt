@@ -1,7 +1,7 @@
 # Class for storing a finite temp effective potential
 
 from .constants import *
-from .pt_math import *
+from .cosmology_functions import *
 
 
 PT_CONST_AB = 16 * pi**2 * exp(1.5 - 2*GAMMA_EULER)
@@ -33,10 +33,6 @@ class VFT:
     def phi_plus(self, T):
         # TODO: add exception handling if FOPT is not found
         return np.real(-3*self.a3(T) + sqrt(9*self.a3(T)**2 - 32*self.a4(T)*self.a2(T)))/(8*self.a4(T))
-
-    def get_T0(self, T_range=[1.0, 100.0]):
-        res = fsolve(self.a2, T_range)
-        return abs(res[0])
     
     def get_Tc(self):
         res = fsolve(self.Veff0Min, [self.T0])
@@ -117,15 +113,15 @@ class VEffMarfatia2(VFT):
         self.lam = lam
         self.c = c
         self.d = d
-        self.T0 = self.get_T0()
+        self.T0 = self.get_T0_from_B()
         self.Tc = self.get_Tc()
     
-    def phi_plus0(self, T0):
+    def phi_plus_marf(self, T0):
         return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0**2))/(2*self.lam)
 
-    def get_T0(self):
+    def get_T0_from_B(self):
         def root_func(T0):
-            return self.b - 0.5 * self.phi_plus0(T0)**2 * (self.d*T0**2 + 0.5*self.c*self.phi_plus0(T0))
+            return self.b + (-self.d*T0**2 * self.phi_plus_marf(T0)**2 - self.c*self.phi_plus_marf(T0)**3 + self.lam*self.phi_plus_marf(T0)**4 / 4)
         
         res = fsolve(root_func, [1.0])
         return res[0]
@@ -139,12 +135,13 @@ class VEffMarfatia2(VFT):
     def a4(self, T):
         return 0.25*self.lam
     
-    def set_params(self, a=0.1, lam=0.061, c=0.249, d=0.596):
+    def set_params(self, a=0.1, lam=0.061, c=0.249, d=0.596, b=75.0**4):
         self.a = a
         self.lam = lam
         self.c = c
         self.d = d
-        self.T0 = self.get_T0()
+        self.b = b
+        self.T0 = self.get_T0_from_B()
         self.Tc = self.get_Tc()
 
     def __call__(self, phi, T):

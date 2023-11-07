@@ -8,7 +8,9 @@ from numpy import pi, exp
 GeV = 1.0
 MeV = 1.0e-3
 keV = 1e-6
+eV = 1e-9
 cm = 1.0
+kilometers = 1e5
 ang = 1e-8
 sec = 1.0
 
@@ -53,10 +55,17 @@ M_PL = 2.4e18 * GeV
 # Cosmological constants
 GAMMA_EULER = 0.5772
 GSTAR_SM = 107.75
+S0_SM = 2891.2  # cm^-3 entropy density today
+HUBBLE = 67.4 * HBAR * kilometers / 3.086e24 # km / (s Mpc)  -> GeV
+T0_SM = 2.3e-4 * eV  # temperature today in GeV
+OMEGA_MATTER = 0.27
+OMEGA_BARYON = 0.17 * OMEGA_MATTER
+OMEGA_DM = OMEGA_MATTER - OMEGA_BARYON
 
 
 # conversion between units
 MEV_PER_KG = 5.6095887e29  # MeV/kg
+MEV_PER_G = 5.6095887e26  # MeV/g
 MEV_PER_HZ = 6.58e-22  # 1 s^-1 = 6.58e-22 MeV
 CM_PER_ANG = 1e-8  # cm to angstroms
 S_PER_DAY = 3600*24

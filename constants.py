@@ -55,7 +55,7 @@ M_PL = 2.4e18 * GeV
 # Cosmological constants
 GAMMA_EULER = 0.5772
 GSTAR_SM = 107.75
-S0_SM = 2891.2  # cm^-3 entropy density today
+S0_SM = 2891.2  * HBARC**3 # cm^-3 --> GeV^3 entropy density today
 HUBBLE = 67.4 * HBAR * kilometers / 3.086e24 # km / (s Mpc)  -> GeV
 T0_SM = 2.3e-4 * eV  # temperature today in GeV
 OMEGA_MATTER = 0.27

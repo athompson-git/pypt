@@ -7,12 +7,13 @@ from .constants import *
 import numpy as np
 from numpy import sqrt, log, exp, log10, power, sin, cos, tan
 
-from scipy.optimize import fsolve, fmin
+from scipy.optimize import fsolve, fmin, minimize, shgo, brute
+from scipy.signal import argrelmin
 from scipy.integrate import quad
 
-import mpmath as mp
-mp.prec = 10
-mp.dps = 10
+#import mpmath as mp
+#mp.prec = 10
+#mp.dps = 10
 
 
 ###### assumes rad domination

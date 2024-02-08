@@ -1,4 +1,4 @@
-# Solves for false vacuum fraction and 
+# Solves for false vacuum fraction and BH mass spectrum 
 
 import warnings
 
@@ -8,15 +8,34 @@ from .ftpot import *
 
 from scipy.integrate import quad
 
+import gmpy2 as mp
+
+import pkg_resources
 
 
+# Import thermal integral data
+bh_dat_path = pkg_resources.resource_filename(__name__, "data/bh_mass_evolution_function.txt")
+bh_mass_data = np.genfromtxt(bh_dat_path)
+
+def bh_mass_loss_function(t, m0, gstar=7):
+    # t is the time since BH formation in seconds
+    # m0 is the initial BH mass in grams
+    t_end = 4e-4 * power(m0 / 1e8, 3) * (108 / gstar)
+    return m0 * np.interp(t/t_end, bh_mass_data[:,0], bh_mass_data[:,1], right=0.0, left=1.0)
+
+
+
+
+# class for calculating the false vacuum filling fraction and PBH spectra
 class FVFilling:
-    def __init__(self, Tstar, Tc, beta, vw, n_samples=100):
+    def __init__(self, Tstar, Tc, betaByHstar, vw, n_samples=100):
         self.Tstar = Tstar
         self.tstar = temp_to_time(Tstar)
         self.Tc = Tc
         self.tc = temp_to_time(Tc)
-        self.beta = beta
+        self.Hstar = sqrt(hubble2_rad(self.Tstar))
+        self.betaByHstar = betaByHstar
+        self.beta = betaByHstar*self.Hstar
         self.vw = vw
         self.n_samples = n_samples
         self.integrand_list = []
@@ -30,7 +49,7 @@ class FVFilling:
 
     # Eq 18 for I(t)
     def fv_filling_frac(self, t):
-        return 1.238 * np.exp(self.beta * (t - self.tstar))
+        return 1.238 * mp.exp(self.beta * (t - self.tstar))
 
     # Eq 3
     def f_fv(self, t):
@@ -72,23 +91,30 @@ class FVFilling:
         mc_volume = (self.tstar - self.tc)**4 / self.n_samples
         GammaStar = self.get_gamma_star()
 
-        self.integrand_list = [power(GammaStar, 4) * mp.exp(self.beta*((ti[0]-self.tstar) + (ti[1]-self.tstar) + (ti[2]-self.tstar) + (ti[3]-self.tstar))) \
+        self.integrand_list = [mp.mpz(mp.exp(self.beta*((ti[0]-self.tstar) + (ti[1]-self.tstar) \
+                                                        + (ti[2]-self.tstar) + (ti[3]-self.tstar))) \
                         * scale_factor_int2_rad(ti[0], self.tstar) * a_ratio_rad(self.tstar, ti[0]) \
                         * scale_factor_int2_rad(ti[1], self.tstar) * a_ratio_rad(self.tstar, ti[1]) \
-                            * scale_factor_int2_rad(ti[2], self.tstar) * a_ratio_rad(self.tstar, ti[2]) 
-                            * scale_factor_int2_rad(ti[3], self.tstar) * a_ratio_rad(self.tstar, ti[3]) for ti in self.ts_rnd_at_tstar]
-        return mc_volume * prefactor * np.sum(self.integrand_list)
+                        * scale_factor_int2_rad(ti[2], self.tstar) * a_ratio_rad(self.tstar, ti[2]) \
+                        * scale_factor_int2_rad(ti[3], self.tstar) * a_ratio_rad(self.tstar, ti[3]))
+                            for ti in self.ts_rnd_at_tstar]
+
+        integral_result = mp.mpfr(sum(self.integrand_list))
+        gamma4 = mp.mpfr(power(GammaStar, 4))
+
+        return mp.mul(prefactor, mp.mul(mp.mul(integral_result, gamma4), mc_volume))
 
 
     def fv_nuc_rate_high_beta(self, t):
         Istar = 1.238
-        return power(Istar*self.beta, 4) * exp(4*self.beta*(t-self.tstar)) * exp(-Istar*exp(self.beta*(t-self.tstar))) / (192 * self.vw**3)
+        return power(Istar*self.beta, 4) * mp.exp(4*self.beta*(t-self.tstar)-Istar*mp.exp(self.beta*(t-self.tstar))) / (192 * self.vw**3)
 
 
     # Eq 15
     def dndR(self, R):
         tp = self.tstar + R/self.vw
-        return (1/self.vw) * (1-self.f_fv(tp)) * self.fv_nuc_rate_tstar() * power(a_ratio_rad(self.tstar, tp), 4)
+        fv_frac = self.fv_nuc_rate_tstar()
+        return (1/self.vw) * mp.mul((1-self.f_fv(tp)) , fv_frac) * power(a_ratio_rad(self.tstar, tp), 4)
 
 
     def dndM(self, Mpbh, gstar_BSM=5):
@@ -99,22 +125,32 @@ class FVFilling:
         
         # use 3.5 to get jacobian
         dMdR = 3 * power(7 * gstar_BSM / 8 / GSTAR_SM, 3/2) * M_PL**2 * power(R * Hstar, 5)
-        dndM = np.heaviside(R - 1/Hstar,0.0) * self.dndR(R) / dMdR
+        dndM = (self.dndR(R) / dMdR) * np.heaviside(R - 1/Hstar,0.0)
 
-        if dndM < 1e120:
-            return dndM
+        return dndM
 
-        return 0.0
-    
-    def pbh_mass_fraction(self, Mpbh, gstar_BSM=5):
+    def dfdM(self, Mpbh, gstar_BSM=5):
         # use 3.8 to construct df/dM
-        t0 = temp_to_time(T0_SM)
+        # takes in mass in grams
+        t0 = temp_to_time(T0_SM)  # time in GeV^-1
 
         s_dark = (2*pi**2 / 45) * (GSTAR_SM + gstar_BSM) * self.Tstar**3  # dark entropy
-        Mprime = (Mpbh**3 + 3*1.895e-3 * M_PL**4 * t0)
+        
+        #Mprime = (power(GEV_PER_G*Mpbh,3) + 3*1.895e-3 * M_PL**4 * t0)  # in natural units
+        Mprime = GEV_PER_G*bh_mass_loss_function(t0*HBAR, Mpbh)  # interpolate results from BlackHawk
 
         dndM = self.dndM(Mprime)
-        return (Mpbh/Mprime)**3 * (1/OMEGA_DM) * (8*pi/(3*M_PL**2 * HUBBLE**2)) \
-            * (S0_SM / s_dark) * (Mprime * dndM)
+        dfdM = (1/OMEGA_DM) * (8*pi/(3*M_PL**2 * HUBBLE**2)) * (S0_SM / s_dark) * (Mprime * dndM)
+        return dfdM
+
+    def mass_peak(self):
+        # returns the approximate peak mass in grams
+        return 5.2e15 * power(1e7 / self.Tstar, 2)
+    
+    def f_pbh(self, Mpbh, gstar_BSM=5):
+        pass
+
+    def pbh_temp(self, Mpbh):
+        return M_PL**2 / (8*pi*Mpbh)
 
 

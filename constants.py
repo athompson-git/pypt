@@ -50,7 +50,7 @@ M_H = 125.35 * GeV
 VEV_H = 246.22 * GeV
 M_Z = 91.1876 * GeV
 M_W = 80.377 * GeV
-M_PL = 2.4e18 * GeV
+M_PL = 1.22e19 * GeV
 
 # Cosmological constants
 GAMMA_EULER = 0.5772
@@ -64,6 +64,7 @@ OMEGA_DM = OMEGA_MATTER - OMEGA_BARYON
 
 
 # conversion between units
+GEV_PER_G = 5.6095887e23  # MeV/kg
 MEV_PER_KG = 5.6095887e29  # MeV/kg
 MEV_PER_G = 5.6095887e26  # MeV/g
 MEV_PER_HZ = 6.58e-22  # 1 s^-1 = 6.58e-22 MeV

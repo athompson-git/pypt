@@ -35,7 +35,8 @@ class GravitationalWave:
     ### Gravitational Wave Spectra Params
     def f_peak(self):
         # returns peak frequency in Hz
-        return (1.9e-5 / self.vw) * self.betaByHstar * (self.Tstar / 1.0e5) * power(GSTAR_SM/100, 1/6)
+        # Tstar in GeV
+        return (1.9e-5 / self.vw) * self.betaByHstar * (self.Tstar / 1.0e2) * power(GSTAR_SM/100, 1/6)
 
     def sw(self, f):
         return power(f/self.f_peak(), 3) * power(7/(4 + 3*power(f/self.f_peak(), 2)), 7/2)

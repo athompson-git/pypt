@@ -68,10 +68,14 @@ def JF_highT(x):
 
 # Generic Finite Temperature Effective Potential Class
 class VFT:
-    def __init__(self, renorm_mass=1.0e6, verbose=False):
+    def __init__(self, renorm_mass=1.0e6, verbose=False, Tc=None, is_real=False):
+        self.is_real = is_real
         self.renorm_mass_scale = renorm_mass
         self.T0 = None
-        self.get_Tc(verbose=verbose)
+        if Tc is None:
+            self.get_Tc(verbose=verbose)
+        else:
+            self.Tc = Tc
 
     def a2(self, T):
         return 1.0
@@ -88,20 +92,16 @@ class VFT:
     
     def get_mins(self, T):
         # returns minima of potential at a given T
-        test_phis = np.linspace(-10*self.renorm_mass_scale, 10*self.renorm_mass_scale, 10000)
-        test_veffs = np.array([self.__call__(phi, T) for phi in test_phis])
+        if self.is_real:
+            test_phis = np.linspace(-30*self.renorm_mass_scale, 30*self.renorm_mass_scale, 10000)
+            test_veffs = np.array([self.__call__(phi, T) for phi in test_phis])
+        else:
+            test_phis = np.linspace(-0.0001, 30*self.renorm_mass_scale, 10000)
+            test_veffs = np.array([self.__call__(phi, T) for phi in test_phis])
+            test_veffs[0] = test_veffs[1] + 0.001  # overwrite to ensure minimum at phi=0
 
         idx_extrema = argrelmin(test_veffs, axis=0)
-
         minima_candidates = test_phis[idx_extrema[0]]
-
-        # Once minima are found, refine scan for each.
-        #refined_minima = []
-        #for min in minima_candidates:
-        #    refine_phis = np.linspace(0.9*min, 1.1*min, 100)
-        #    refine_veffs = np.array([self.__call__(phi, T) for phi in refine_phis])
-            
-        #    refined_minima.extend(refine_phis[argrelmin(refine_veffs)])
 
         return minima_candidates
     
@@ -118,8 +118,8 @@ class VFT:
             print("mins T=0:", mins_low, "mins T_high = ", mins_high)
             print("shape of mins_high = {}".format(mins_high.shape))
 
-        if len(mins_low) < 1 or len(mins_high) < 1:
-            print("Starting with potential that has no VEV (high or low)!")
+        if len(mins_low) < 1:
+            print("Starting with potential that has no T=0 VEV (high or low)!")
             return None
 
         # begin binary search between 1 MeV and 5 * renorm mass scale
@@ -199,7 +199,7 @@ class VEffSM(VFT):
 
 class VEffRealScalarYukawa(VFT):
     def __init__(self, gchi=1.0, mchi=1.0, mu=100.0, lam=0.1, c=0.1, Lambda=1000.0,
-                 msign=-1.0, verbose=False):
+                 msign=-1.0, Tc=None, verbose=False):
         self.gchi = gchi  # yukawa coupling
         self.mchi = mchi  # fermion mass
         self.mu = mu  # scalar mass
@@ -209,7 +209,7 @@ class VEffRealScalarYukawa(VFT):
         self.renorm_mass_scale = Lambda
         self.Lambda = Lambda
 
-        super().__init__(renorm_mass=Lambda, verbose=verbose)
+        super().__init__(renorm_mass=Lambda, Tc=Tc, verbose=verbose)
     
     def set_params(self, gchi=1.0, mchi=1.0, mu=100.0, lam=0.1, c=0.1, Lambda=1000.0, msign=-1.0, verbose=False):
         self.gchi = gchi
@@ -240,7 +240,7 @@ class VEffRealScalarYukawa(VFT):
         
     def mu2(self, phi, T):
         # with thermal mass correction
-        return self.msign*self.mu**2 + self.c * phi + self.lam * phi**2 / 2 #- self.daisy(T)
+        return self.msign*self.mu**2 + self.c * phi + self.lam * phi**2 / 2 - self.daisy(T)
 
     def mchi2(self, phi):
         return (self.mchi + self.gchi * phi)**2
@@ -253,25 +253,28 @@ class VEffRealScalarYukawa(VFT):
     
     def vct(self, phi):
         deltaOmega = (-12*self.mchi**4 + 3*self.mu**4 + 8*self.mchi**4 * log(self.mchi**2) \
-                        + 2*self.mu**4 * log(self.mu**2))/(128 * pi**2)
+                        - 2*self.mu**4 * log(self.mu**2))/(128 * pi**2)
         
-        deltaP = (4*sqrt(2)*self.gchi*self.mchi**3 * (log(power(self.mchi, 2))-1) \
-                 + self.msign*self.c*self.mu**2 * (1-2*log(power(self.mu, 2))))/(32*pi**2)
+        deltaP = (8*self.gchi*self.mchi**3 * (log(power(self.mchi, 2))-1) \
+                 + self.msign*self.c*self.mu**2 * (1-log(power(self.mu, 2))))/(32*pi**2)
         
-        deltaMu2 = self.msign*self.mu**2 + (-4*power(self.gchi*self.mchi, 2) + self.msign*self.lam*self.mu**2 \
-                   + 12*power(self.gchi*self.mchi,2)*log(power(self.mchi, 2)) \
-                    - (self.c**2 + self.msign*self.lam*self.mu**2)*log(power(self.mu,2)))/(32*pi**2)
+        deltaMu2 = (-8*power(self.gchi*self.mchi, 2) + self.msign*self.lam*self.mu**2 \
+                   + 24*power(self.gchi*self.mchi,2)*log(power(self.mchi, 2)) \
+                    - 2*(self.c**2 + self.msign*self.lam*self.mu**2)*log(power(self.mu,2)))/(32*pi**2)
         
-        deltaC = self.c-(1/(32*pi**2))*(-8*sqrt(2)*self.mchi*self.gchi**3 - 8*self.Lambda*self.gchi**4 \
-                           + (2*power(self.c+self.lam*self.Lambda, 3))/(2*self.c*self.Lambda + self.lam*self.Lambda**2 + 2*self.msign*self.mu**2)\
-                             -12*self.gchi**3 * (sqrt(2)*self.mchi + self.gchi*self.Lambda) * log(power(self.mchi + self.gchi*self.Lambda/sqrt(2),2)) \
-                                + 3*self.lam*(self.c + self.lam*self.Lambda)*log(abs(self.c*self.Lambda + 0.5*self.lam*self.Lambda**2 + self.msign*self.mu**2)))
+        xi1 = abs(self.c*self.Lambda + 0.5*self.lam*self.Lambda**2 + self.msign*self.mu**2)
+        xi2 = self.c+self.lam*self.Lambda
+        mchi_shift = power(self.mchi + self.gchi*self.Lambda,2)
+
+        deltaC = -self.lam*self.Lambda - (1/(32*pi**2))*(-32*self.mchi*self.gchi**3 + 96*self.Lambda*self.gchi**4 \
+                            + (4*self.Lambda*power(xi2, 4))/power(2*xi1,2) \
+                            + (2*(self.c-5*self.lam*self.Lambda)*power(xi2,2))/(2*xi1) \
+                            -48*self.gchi**3 * self.mchi * log(mchi_shift) \
+                            + 3*self.lam*self.c*log(xi1))
         
-        deltaLambda = self.lam + (1/(32*pi**2))*(32*self.gchi**4 + 12*self.gchi**4 * log((self.mchi + self.gchi*self.Lambda/sqrt(2))**2) \
-                                    - 3*self.lam**2 * log(abs(self.c*self.Lambda + 0.5*self.lam*self.Lambda**2 + self.msign*self.mu**2)) \
-                                    + 4*(self.c + self.lam*self.Lambda)**2 \
-                                    * (self.c**2 - 4*self.c*self.lam*self.Lambda - 2*power(self.lam*self.Lambda,2) - 6*self.lam*self.msign*self.mu**2) \
-                                        / (2*self.c*self.Lambda + self.lam*self.Lambda**2 + 2*self.msign*self.mu**2)**2)
+        deltaLambda = (1/(32*pi**2))*(self.gchi**4 * (128 + 48*log(mchi_shift)) \
+                                    - 3*self.lam**2 * log(xi1) \
+                                    + 4*xi2**2 * (self.c**2 - 4*self.c*self.lam*self.Lambda - 2*power(self.lam*self.Lambda,2) - 6*self.lam*self.msign*self.mu**2) / power(2*xi1, 2))
         
         return deltaOmega + deltaP*phi + (deltaMu2/2)*phi**2 + (deltaC/6)*phi**3 + (deltaLambda/24)*phi**4
 

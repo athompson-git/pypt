@@ -5,7 +5,7 @@ Requirements:
 * numpy
 * scipy
 * gmpy2
-* CosmoTransitions
+* [cosmoTransitions](https://github.com/clwainwright/CosmoTransitions/tree/master)
 
 
 References:

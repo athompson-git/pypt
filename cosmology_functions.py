@@ -15,10 +15,8 @@ from scipy.integrate import quad
 #mp.prec = 10
 #mp.dps = 10
 
-# import CosmoTransitions
-import sys
-sys.path.append("../")
-from CosmoTransitions.cosmoTransitions.tunneling1D import SingleFieldInstanton, PotentialError
+import cosmoTransitions as cosmo
+from cosmoTransitions.tunneling1D import SingleFieldInstanton, PotentialError
 
 
 ###### assumes rad domination

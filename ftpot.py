@@ -98,7 +98,7 @@ class VFT:
         else:
             test_phis = np.linspace(-0.0001, 30*self.renorm_mass_scale, 10000)
             test_veffs = np.array([self.__call__(phi, T) for phi in test_phis])
-            test_veffs[0] = test_veffs[1] + 0.001  # overwrite to ensure minimum at phi=0
+            test_veffs[0] = test_veffs[1] + 0.0000001  # overwrite to ensure minimum at phi=0
 
         idx_extrema = argrelmin(test_veffs, axis=0)
         minima_candidates = test_phis[idx_extrema[0]]
@@ -109,10 +109,11 @@ class VFT:
         self.Tc = None
 
         T_high = 10*self.renorm_mass_scale
+        T_low = 1e-6
         
         # check that we contain the crossover between these two extrema
         mins_high = self.get_mins(T_high)
-        mins_low = self.get_mins(1.0e-4)  # choose T_low at 0.1 MeV
+        mins_low = self.get_mins(T_low)  # choose T_low at 1 keV
 
         if verbose:
             print("mins T=0:", mins_low, "mins T_high = ", mins_high)
@@ -124,9 +125,9 @@ class VFT:
 
         # begin binary search between 1 MeV and 5 * renorm mass scale
         # search for where V(phi) > 0 for all phi
-        test_phis = np.linspace(0.001, 10*self.renorm_mass_scale, 1000)
+        test_phis = np.linspace(0.0001, 10*self.renorm_mass_scale, 1000)
         tol = 0.001*self.renorm_mass_scale  # 1% tolerance of the renorm. mass scale
-        T_low = 1e-6
+        
 
         low, high = T_low, T_high
         target = 0.0 # target value of potential: use T_low as ref.

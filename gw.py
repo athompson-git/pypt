@@ -47,3 +47,9 @@ class GravitationalWave:
         alpha = self.alpha
         return 8.5e-6 * self.sw(f) * power(100/GSTAR_SM, 1/3) * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
 
+    def omega_turbulence(self, f):
+        pass
+
+    def omega_col(self, f):
+        pass
+

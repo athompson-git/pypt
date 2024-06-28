@@ -5,11 +5,12 @@ from .constants import *
 from .bubble_nucleation import *
 
 class GravitationalWave:
-    def __init__(self, alpha=0.1, betaByHstar=1000.0, vw=0.9, Tstar=1000.0):
+    def __init__(self, alpha=0.1, betaByHstar=1000.0, vw=0.9, Tstar=1000.0, gstar_D=4):
         self.alpha = alpha
         self.betaByHstar = betaByHstar
         self.vw = vw
         self.Tstar = Tstar
+        self.gstar_D = gstar_D
     
     def kappa(self):
         alpha = self.alpha
@@ -33,23 +34,60 @@ class GravitationalWave:
             return kB + (vw-cs)*deltaK + power((vw-cs)/(vJ-cs), 3) * (kC - kB -(vJ - cs)*deltaK)
 
     ### Gravitational Wave Spectra Params
-    def f_peak(self):
+    def hstar_param(self):
+        return 1.65e-5 * (self.Tstar/100.0) * power((self.gstar_D + gstar_sm(self.Tstar))/100, 1/6)
+    
+    def f_peak_sw(self):
         # returns peak frequency in Hz
         # Tstar in GeV
         return (1.9e-5 / self.vw) * self.betaByHstar * (self.Tstar / 1.0e2) * power(GSTAR_SM/100, 1/6)
+    
+    def f_peak_col(self):
+        return (0.62/(1.8 - 0.1*self.vw + self.vw**2)) * self.betaByHstar * self.hstar_param()
+    
+    def f_peak_turb(self):
+        return 1.64*self.betaByHstar*self.hstar_param()/self.vw
 
     def sw(self, f):
-        return power(f/self.f_peak(), 3) * power(7/(4 + 3*power(f/self.f_peak(), 2)), 7/2)
+        # spectral function for the sound wave piece
+        return power(f/self.f_peak_sw(), 3) * power(7/(4 + 3*power(f/self.f_peak_sw(), 2)), 7/2)
+    
+    def sw_col(self, f):
+        # spectral function for the collisional piece
+        hstar = 1.65e-5 * (self.Tstar/100.0) * power((self.gstar_D + gstar_sm(self.Tstar))/100, 1/6)
+        f_col = (0.62/(1.8 - 0.1*self.vw + self.vw**2)) * self.betaByHstar * hstar
+        return ((0.11*self.vw**3)/(0.42 + self.vw**2)) * ((3.8*power(f/f_col, 2.8))/(1 + 2.8*power(f/f_col, 3.8)))
 
-    def omega(self, f):
-        # return the gravitational wave energy budget
+    def sw_turb(self, f):
+        # spectral function for the turbulence piece
+        hstar = 1.65e-5 * (self.Tstar/100.0) * power((self.gstar_D + gstar_sm(self.Tstar))/100, 1/6)
+        f_turb = 1.64*self.betaByHstar*hstar/self.vw
+        return power(f/f_turb, 3)/(power(1 + f/f_turb, 11/3)*(1 + 8*pi*f/hstar))
+
+    def omega_sw(self, f):
+        # return the gravitational wave energy budget from sound waves
         kappa = self.kappa()
         alpha = self.alpha
-        return 8.5e-6 * self.sw(f) * power(100/GSTAR_SM, 1/3) * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
+        return 8.5e-6 * self.sw(f) * power(100/gstar_sm(self.Tstar), 1/3) * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
 
-    def omega_turbulence(self, f):
-        pass
+    def omega_turb(self, f):
+        # return the gravitational wave energy budget from turbulence
+        kappa = 0.05*self.kappa()
+        return 3.35e-4 * self.vw * (1/self.betaByHstar) * power(100/(self.gstar_D + gstar_sm(self.Tstar)), 1/3) \
+            * power(kappa*self.alpha / (1+self.alpha), 3/2) * self.sw_col(f)
 
     def omega_col(self, f):
-        pass
+        # return the gravitational wave energy budget from collisions
+        kappa = np.clip(1 - self.kappa() - 0.05*self.kappa(), a_min=0.0, a_max=1.0)
+        return 1.67e-5 * power(1/self.betaByHstar, 2) * power(100/(self.gstar_D + gstar_sm(self.Tstar)), 1/3) \
+            * power(kappa*self.alpha / (1+self.alpha), 2) * self.sw_col(f)
+    
+    def omega(self, f):
+        return self.omega_sw(f) + self.omega_col(f) + self.omega_turb(f)
+    
+    def f_peak(self):
+        peak_fs = [self.f_peak_sw(), self.f_peak_col(), self.f_peak_turb()]
+        peaks = [self.omega_sw(self.f_peak_sw()), self.omega_col(self.f_peak_col()), self.omega_turb(self.f_peak_turb())]
+        max_peak_idx = np.argmax(peaks)
+        return peak_fs[max_peak_idx]
 

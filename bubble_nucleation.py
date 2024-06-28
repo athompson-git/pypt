@@ -7,6 +7,7 @@ from .cosmology_functions import *
 
 from .ftpot import *
 
+import gmpy2 as mp
 
 
 
@@ -23,7 +24,7 @@ class BubbleNucleation:
         else:
             self.get_Tstar(verbose)
         
-        self.deltaT = 0.0001*self.Tstar
+        self.deltaT = 0.0000001*self.Tstar
         self.setup_sfi()
     
     def veff_fixed_T(self, phi):
@@ -42,7 +43,7 @@ class BubbleNucleation:
         
         self.phi_plus = max(self.veff.get_mins(T=self.Tstar))
         self.phi_plus_dT = max(self.veff.get_mins(T=self.Tstar+self.deltaT))
-    
+
         sfi_T = SingleFieldInstanton(phi_absMin=self.phi_plus, phi_metaMin=0.0, V=veff_at_T)
         sfi_dT = SingleFieldInstanton(phi_absMin=self.phi_plus_dT, phi_metaMin=0.0, V=veff_at_deltaT)
 
@@ -94,25 +95,6 @@ class BubbleNucleation:
                     print("f(a) and f(b) must have different signs error!")
                 return 0.0
 
-    def bounce_action(self, T):
-        # Returns S3/T given the parameters in Veff in thin-wall approx
-        # TODO: integrate CosmoTransition
-        delta = 8*self.veff.a4(T) * self.veff.a2(T) / self.veff.a3(T)**2
-        beta1 = 8.2938
-        beta2 = -5.5330
-        beta3 = 0.8180
-        return np.real(-pi * self.veff.a3(T) * 8*sqrt(2)*power(2 - delta, -2)*sqrt(delta/2) \
-            * (beta1*delta + beta2*delta**2 + beta3*delta**3) / power(self.veff.a4(T), 1.5) / 81 / T)
-
-    def rate(self, T):
-        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
-
-    def hubble2(self, T):
-        return pi**2 * GSTAR_SM * T**4 / 90 / M_PL**2  + abs((self.veff.Veff0Min(T)*3/M_PL**2))
-    
-    def dP(self, T):
-        return self.rate(T) / self.hubble2(T)**2 / T
-    
     def get_Tstar(self, verbose=False):
         # start from T_critical
         se_1 = self.get_bounce_action_ct()
@@ -209,3 +191,142 @@ class BubbleNucleation:
         else:
             return 1.0
 
+
+
+
+class BubbleNucleationQuartic:
+    """
+    Bubble nucleation class for the generic quartic potential
+    uses an analytic approximation of the bounce action
+    """
+    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False):
+        self.veff = veff
+        self.Tc = veff.Tc
+        self.T_test = veff.Tc
+        self.verbose = verbose
+        self.a = veff.a
+        self.c = veff.c
+        self.d = veff.d
+        self.lam = veff.lam
+        self.T0 = veff.T0
+        self.vev = veff.vev
+        self.gstar_D = gstar_D
+
+        if Tstar is not None:
+            self.Tstar = Tstar
+        else:
+            self.Tstar = self.get_Tstar_from_rate()
+        
+        try:
+            if verbose:
+                print("Found T* = {} for S3/T = {}".format(self.Tstar, self.bounce_action(self.Tstar)))
+
+            self.deltaT = 0.0001*self.Tstar
+
+            self.phi_plus = max(self.veff.get_mins(T=self.Tstar))
+            self.phi_plus_dT = max(self.veff.get_mins(T=self.Tstar+self.deltaT))
+            
+            self.SE_T = self.bounce_action(self.Tstar)
+            self.SE_T_plus_dT = self.bounce_action(self.Tstar+self.deltaT)
+        except:
+            raise Exception("Unable to find bounce action solutions or T*!")
+
+    def veff_fixed_T(self, phi):
+        return self.veff(phi, self.T_test)
+
+    def bounce_action(self, T):
+        # Returns S3/T given the parameters in Veff in thin-wall approx
+        delta = 8*self.veff.a4(T) * self.veff.a2(T) / self.veff.a3(T)**2
+        beta1 = 8.2938
+        beta2 = -5.5330
+        beta3 = 0.8180
+        return np.clip((-pi * self.veff.a3(T) * 8*sqrt(2)*power(2 - delta, -2) \
+                        *sqrt(abs(delta)/2) \
+            * (beta1*delta + beta2*delta**2 + beta3*delta**3) \
+                / power(self.veff.a4(T), 1.5) / 81 / T), a_min=0.0, a_max=np.inf)
+
+    def rate(self, T):
+        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
+    
+    def get_Tstar(self):
+        # check SE/T close to T=Tc
+        if self.verbose:
+            print("SE/T = {} at T=Tc".format(self.bounce_action(self.Tc)))
+        
+        T_grid = np.linspace(self.T0, 1.0*self.Tc, 10000000)
+        s3ByTs = self.bounce_action(T_grid)
+
+        mask = (s3ByTs>80.0)*(s3ByTs < 200.0)
+
+        s3ByT_within_140 = s3ByTs[mask]
+        T_grid_within_140 = T_grid[mask]
+        if len(s3ByT_within_140) == 0:
+            return None
+        
+        s3ByT_within_140 = np.asarray(s3ByT_within_140)
+        closest_idx = (np.abs(s3ByT_within_140 - 140.0)).argmin()
+        if abs(s3ByT_within_140[closest_idx] - 140.0) > 10.0:
+            return None
+        return T_grid_within_140[closest_idx]
+    
+    def get_Tstar_from_rate(self):
+        # check SE/T close to T=Tc
+        T_grid = np.linspace(self.T0, 1.0*self.Tc, 10000)
+        GammaByHstar = np.nan_to_num([self.rate(T)/power(hubble2_rad(T,gstar=gstar_sm(T)+self.gstar_D),2) for T in T_grid])
+        star_id = np.argmin(abs(GammaByHstar - 1.0))
+        T_star_2 = T_grid[star_id]
+
+        # save critical rate error
+        self.rate_star = GammaByHstar[star_id]
+
+        return T_star_2
+    
+    def dVdT(self, phi, T):
+        return 2*self.d*T*phi**2 - self.a*phi**2
+    
+    def dSbyTdT(self, T):
+        beta1 = 8.2938
+        beta2 = -5.5330
+        beta3 = 0.8180
+        numerator = (256*sqrt(2)*self.d*pi*sqrt((self.d*(T-self.T0)*(T+self.T0)*self.lam)/(self.c+self.a*T)**2)\
+         * ((self.c+self.a*T)**6 * (3*self.c*T+self.a*(T**2+2*self.T0**2))*beta1+self.d*(self.c+self.a*T)**4 \
+           * (T-self.T0)*(T+self.T0)*(-self.a*T**2 * (beta1-2*beta2)+2*self.a*self.T0**2 \
+                                      *(beta1+4*beta2)+self.c*T*(beta1+10*beta2)) \
+            *self.lam-2*self.d**2 * (self.c+self.a*T)**2 * (T-self.T0)**2 * (T+self.T0)**2 \
+                * (T*(self.c+self.a*T)*beta2 - 2*(7*self.c*T+self.a*(T**2+6*self.T0**2))*beta3)*self.lam**2-4*self.d**3 \
+                    * (T**2-self.T0**2)**3 * (3*self.c*T+self.a*T**2 + 2*self.a*self.T0**2)*beta3*self.lam**3))
+        denomenator = 81*power(self.c+self.a*T, 8) * sqrt(self.lam)*(2+(2*self.d * (-T**2 + self.T0**2)*self.lam)/(self.c+self.a*T)**2)**3
+        return abs(numerator/denomenator)
+
+    def alpha(self):
+        # Latent heat
+        prefactor = 30 / pi**2 / (GSTAR_SM) / self.Tstar**4
+
+        deltaV = -self.veff(self.phi_plus, self.Tstar)
+        dVdT = (self.veff(self.phi_plus_dT, self.Tstar+self.deltaT) - self.veff(self.phi_plus, self.Tstar))/(self.deltaT)
+        #dVdT = self.dVdT(self.phi_plus, self.Tstar)
+
+        return prefactor * (deltaV + self.Tstar * dVdT / 4)
+
+    def betaByHstar(self):
+        # Get the derivative of S3/T
+        #dSdT = abs(self.SE_T_plus_dT - self.SE_T) / self.deltaT
+        dSdT = self.dSbyTdT(self.Tstar)
+        return self.Tstar * dSdT
+
+    def vw(self):
+        alpha = self.alpha()
+        deltaV = -self.veff(self.phi_plus, self.Tstar)
+
+        # Jouget velocity
+        vJ = (sqrt(2*alpha/3 + alpha**2) + sqrt(1/3))/(1+alpha)
+
+        # radiation density
+        rho_r = pi**2 * GSTAR_SM * self.Tstar**4 / 30
+
+        #  previous approx: return (1/sqrt(3) + sqrt(alpha**2 + 2*alpha/3))/(1+alpha)
+
+        if sqrt(deltaV / (alpha*rho_r)) < vJ:
+            return sqrt(deltaV / (alpha*rho_r))
+        else:
+            return 1.0

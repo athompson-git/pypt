@@ -71,7 +71,6 @@ class VFT:
     def __init__(self, renorm_mass=1.0e6, verbose=False, Tc=None, is_real=False):
         self.is_real = is_real
         self.renorm_mass_scale = renorm_mass
-        self.T0 = None
         if Tc is None:
             self.get_Tc(verbose=verbose)
         else:
@@ -108,7 +107,7 @@ class VFT:
     def get_Tc(self, verbose=False):
         self.Tc = None
 
-        T_high = 10*self.renorm_mass_scale
+        T_high = 100*self.renorm_mass_scale
         T_low = 1e-6
         
         # check that we contain the crossover between these two extrema
@@ -125,8 +124,8 @@ class VFT:
 
         # begin binary search between 1 MeV and 5 * renorm mass scale
         # search for where V(phi) > 0 for all phi
-        test_phis = np.linspace(0.0001, 10*self.renorm_mass_scale, 1000)
-        tol = 0.001*self.renorm_mass_scale  # 1% tolerance of the renorm. mass scale
+        test_phis = np.linspace(0.0001, 100*self.renorm_mass_scale, 1000)
+        tol = 0.0001*self.renorm_mass_scale  # 1% tolerance of the renorm. mass scale
         
 
         low, high = T_low, T_high
@@ -200,7 +199,7 @@ class VEffSM(VFT):
 
 class VEffRealScalarYukawa(VFT):
     def __init__(self, gchi=1.0, mchi=1.0, mu=100.0, lam=0.1, c=0.1, Lambda=1000.0,
-                 msign=-1.0, Tc=None, verbose=False):
+                 msign=-1.0, Tc=None, verbose=False, is_real=False):
         self.gchi = gchi  # yukawa coupling
         self.mchi = mchi  # fermion mass
         self.mu = mu  # scalar mass
@@ -210,7 +209,7 @@ class VEffRealScalarYukawa(VFT):
         self.renorm_mass_scale = Lambda
         self.Lambda = Lambda
 
-        super().__init__(renorm_mass=Lambda, Tc=Tc, verbose=verbose)
+        super().__init__(renorm_mass=Lambda, Tc=Tc, verbose=verbose, is_real=is_real)
     
     def set_params(self, gchi=1.0, mchi=1.0, mu=100.0, lam=0.1, c=0.1, Lambda=1000.0, msign=-1.0, verbose=False):
         self.gchi = gchi
@@ -299,26 +298,87 @@ class VEffRealScalarYukawa(VFT):
 
 
 
-class VEffMarfatia2(VFT):
-    def __init__(self, a=0.1, lam=0.061, c=0.249, d=0.596, b=75.0**4):
-        super().__init__()
+class VEffGeneric(VFT):
+    def __init__(self, a=0.1, lam=0.061, c=0.249, d=0.596, vev=None, b=75.0**4, verbose=False):
+        self.verbose = verbose
         self.a = a
         self.b = b
         self.lam = lam
         self.c = c
         self.d = d
-        self.T0 = self.get_T0_from_B()
-        self.Tc = self.get_Tc()
+        if vev is not None:
+            if self.c > vev*self.lam/3:
+                raise Exception("c > v lambda / 3, too large!")
+            
+            self.T0 = self.get_T0_from_vev(vev)
+            self.vev = vev
+        elif b is not None:
+            self.T0 = self.get_T0_from_B()
+            self.vev = self.phi_plus(self.T0)
+        else:
+            raise Exception("either the VEV or b must be set!")
+        
+        if verbose:
+            print("VEV = {}, T0={}".format(self.vev, self.T0))
+        Tc = self.get_Tc_from_T0(self.T0)
+
+        bad_Tc = (np.isnan(Tc)) or (Tc < 0)
+        if bad_Tc:
+            raise Exception("Bad Tc found! Either imaginary or negative.")
+
+        super().__init__(renorm_mass=self.vev, verbose=verbose, is_real=False, Tc=Tc)
     
-    def phi_plus_marf(self, T0):
+    def set_params(self, a=0.1, lam=0.061, c=0.249, d=0.596, vev=None, b=75.0**4):
+        self.a = a
+        self.b = b
+        self.lam = lam
+        self.c = c
+        self.d = d
+
+        if vev is not None:
+            if self.c > vev*self.lam/3:
+                raise Exception("c > v lambda / 3, too large!")
+            
+            self.T0 = self.get_T0_from_vev(vev)
+            self.vev = vev
+        elif b is not None:
+            self.T0 = self.get_T0_from_B()
+        else:
+            raise Exception("either the VEV or b must be set!")
+        
+        self.vev = self.phi_plus(self.T0)
+        Tc = self.get_Tc_from_T0(self.T0)
+
+        bad_Tc = (np.isnan(Tc)) or (Tc < 0)
+        if bad_Tc:
+            raise Exception("Bad Tc found! Either imaginary or negative.")
+        
+        self.renorm_mass_scale = vev
+        self.Tc = Tc
+    
+    def phi_plus(self, T0):
         return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0**2))/(2*self.lam)
 
     def get_T0_from_B(self):
         def root_func(T0):
-            return self.b + (-self.d*T0**2 * self.phi_plus_marf(T0)**2 - self.c*self.phi_plus_marf(T0)**3 + self.lam*self.phi_plus_marf(T0)**4 / 4)
+            return self.b + (-self.d*T0**2 * self.phi_plus(T0)**2 - self.c*self.phi_plus(T0)**3 + self.lam*self.phi_plus(T0)**4 / 4)
         
         res = fsolve(root_func, [1.0])
         return res[0]
+    
+    def get_T0_from_vev(self, vev):
+        return sqrt(self.lam * vev**2 - 3*self.c*vev)/sqrt(2*self.d)
+    
+    def get_Tc_from_T0(self, T0):
+        Tc_solution_1 = (-self.a*self.c + sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
+        Tc_solution_2 = (-self.a*self.c - sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
+        print("Tc1 = {}, Tc2 = {}, Tc=T0={}".format(Tc_solution_1, Tc_solution_2, self.T0))
+        if not np.isnan(Tc_solution_1) and Tc_solution_1 > 0:
+            return Tc_solution_1
+        elif not np.isnan(Tc_solution_2) and Tc_solution_2 > 0:
+            return Tc_solution_2
+        else:
+            return self.T0
     
     def a2(self, T):
         return self.d * (T**2 - self.T0**2)
@@ -329,14 +389,25 @@ class VEffMarfatia2(VFT):
     def a4(self, T):
         return 0.25*self.lam
     
-    def set_params(self, a=0.1, lam=0.061, c=0.249, d=0.596, b=75.0**4):
-        self.a = a
-        self.lam = lam
-        self.c = c
-        self.d = d
-        self.b = b
-        self.T0 = self.get_T0_from_B()
-        self.Tc = self.get_Tc()
+    def dVdT(self, phi, T):
+        return 2*self.d*T*phi**2 - self.a*phi**2
+    
+    def dSbyTdT(self, T):
+        beta1 = 8.2938
+        beta2 = -5.5330
+        beta3 = 0.8180
+        numerator = (256*sqrt(2)*self.d*pi*sqrt((self.d*(T-self.T0)*(T+self.T0)*self.lam)/(self.c+self.a*T)**2)\
+         * ((self.c+self.a*T)**6 * (3*self.c*T+self.a*(T**2+2*self.T0**2))*beta1+self.d*(self.c+self.a*T)**4 \
+           * (T-self.T0)*(T+self.T0)*(-self.a*T**2 * (beta1-2*beta2)+2*self.a*self.T0**2 \
+                                      *(beta1+4*beta2)+self.c*T*(beta1+10*beta2)) \
+            *self.lam-2*self.d**2 * (self.c+self.a*T)**2 * (T-self.T0)**2 * (T+self.T0)**2 \
+                * (T*(self.c+self.a*T)*beta2 - 2*(7*self.c*T+self.a*(T**2+6*self.T0**2))*beta3)*self.lam**2-4*self.d**3 \
+                    * (T**2-self.T0**2)**3 * (3*self.c*T+self.a*T**2 + 2*self.a*self.T0**2)*beta3*self.lam**3))
+        denomenator = 81*power(self.c+self.a*T, 8) * sqrt(self.lam)*(2+(2*self.d * (-T**2 + self.T0**2)*self.lam)/(self.c+self.a*T)**2)**3
+        return numerator/denomenator
+    
+    def alpha(self):
+        pass
 
     def __call__(self, phi, T):
         return np.real(self.d * (T**2 - self.T0**2)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)

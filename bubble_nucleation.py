@@ -199,7 +199,7 @@ class BubbleNucleationQuartic:
     Bubble nucleation class for the generic quartic potential
     uses an analytic approximation of the bounce action
     """
-    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=5, verbose=False):
+    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False):
         self.veff = veff
         self.Tc = veff.Tc
         self.T_test = veff.Tc

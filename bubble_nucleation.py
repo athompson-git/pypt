@@ -199,7 +199,7 @@ class BubbleNucleationQuartic:
     Bubble nucleation class for the generic quartic potential
     uses an analytic approximation of the bounce action
     """
-    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False):
+    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=5, verbose=False):
         self.veff = veff
         self.Tc = veff.Tc
         self.T_test = veff.Tc
@@ -221,7 +221,7 @@ class BubbleNucleationQuartic:
             if verbose:
                 print("Found T* = {} for S3/T = {}".format(self.Tstar, self.bounce_action(self.Tstar)))
 
-            self.deltaT = 0.0001*self.Tstar
+            self.deltaT = 0.000001*self.Tstar
 
             self.phi_plus = max(self.veff.get_mins(T=self.Tstar))
             self.phi_plus_dT = max(self.veff.get_mins(T=self.Tstar+self.deltaT))
@@ -308,10 +308,12 @@ class BubbleNucleationQuartic:
 
         return prefactor * (deltaV + self.Tstar * dVdT / 4)
 
-    def betaByHstar(self):
+    def betaByHstar(self, numeric=True):
         # Get the derivative of S3/T
-        #dSdT = abs(self.SE_T_plus_dT - self.SE_T) / self.deltaT
-        dSdT = self.dSbyTdT(self.Tstar)
+        if numeric:
+            dSdT = abs(self.SE_T_plus_dT - self.SE_T) / self.deltaT
+        else:
+            dSdT = self.dSbyTdT(self.Tstar)
         return self.Tstar * dSdT
 
     def vw(self):

@@ -5,7 +5,7 @@ from .constants import *
 from .bubble_nucleation import *
 
 class GravitationalWave:
-    def __init__(self, alpha=0.1, betaByHstar=1000.0, vw=0.9, Tstar=1000.0, gstar_D=4):
+    def __init__(self, alpha=0.1, betaByHstar=1000.0, vw=0.9, Tstar=1000.0, gstar_D=4.5):
         self.alpha = alpha
         self.betaByHstar = betaByHstar
         self.vw = vw

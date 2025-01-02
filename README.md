@@ -43,7 +43,7 @@ where the output of ```ch.solve_system()``` is a 7-dimensional solution for the 
 ```
 a, rhoR, v0, v1, v2, v3, r = y[0], y[1], y[2], y[3], y[4], y[5], y[6]
 ```
-all in units of a dimensionless time parameter. An example solution is shown below.
+all in units of a dimensionless time parameter. An example solution is shown below for 3 different benchmark phase transitions.
 
 ![Cosmic history from 7 ODE's](img/cosmic_history_example_7ode.png "Coupled ODE Solver for Radiation and Vacuum energy domination")
 

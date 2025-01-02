@@ -31,7 +31,7 @@ Gravitational waves (GW) can be generated via the ```Gravitational Wave``` class
 
 
 ## ODE Solver for $\rho_V + \rho_R$ Cosmic History
-From Sasaki, Kusenko, Flores (FKS) (arXiv:2402.13341)[https://arxiv.org/abs/2402.13341], a method for solving the Friedmann equations with both radiation and vacuum energy considered. This solver is contained within ```vac_rad_cosmic_history.py``` and can be called by supplying information from an
+From Flores, Kusenko, Sasaki (FKS) (arXiv:2402.13341)[https://arxiv.org/abs/2402.13341], a method for solving the Friedmann equations with both radiation and vacuum energy considered. This solver is contained within ```vac_rad_cosmic_history.py``` and can be called by supplying information from an
 effective potential, e.g.
 ```
 ch = CosmicHistoryVacuumRadiation(deltaV=veff(veff.vev, T=0.0), sigma=veff.wall_tension(), vw=1.0)

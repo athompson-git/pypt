@@ -84,7 +84,7 @@ class FVFilling:
         return 1.238 * np.power(self.beta, 4) / (8*pi*self.vw**3)
 
 
-    # Eq 12 in Liu-Kawana-Xie
+    # Eq 12 in Lu-Kawana-Xie
     def fv_nuc_rate(self, t, assume_const_scale_fact=False):
         self.integrand_list = []
         # tc --> (t4, t3, t2, t1) --> t

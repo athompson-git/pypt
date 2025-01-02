@@ -371,6 +371,7 @@ class VEffGeneric(VFT):
         return (self.lam * vev**2 - 3*self.c*vev)/(2*self.d)
     
     def get_Tc_from_T0(self, T0):
+        # TODO(AT): phase out since Tc is obtained in a more robust way
         Tc_solution_1 = (-self.a*self.c + sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
         Tc_solution_2 = (-self.a*self.c - sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
         print("Tc1 = {}, Tc2 = {}, Tc=T0={}".format(Tc_solution_1, Tc_solution_2, np.sqrt(self.T0sq)))
@@ -411,9 +412,6 @@ class VEffGeneric(VFT):
                     * (T**2-self.T0**2)**3 * (3*self.c*T+self.a*T**2 + 2*self.a*self.T0**2)*beta3*self.lam**3))
         denomenator = 81*power(self.c+self.a*T, 8) * sqrt(self.lam)*(2+(2*self.d * (-T**2 + self.T0**2)*self.lam)/(self.c+self.a*T)**2)**3
         return numerator/denomenator
-    
-    def alpha(self):
-        pass
 
     def __call__(self, phi, T):
         return np.real(self.d * (T**2 - self.T0sq)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)

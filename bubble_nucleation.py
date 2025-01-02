@@ -4,7 +4,7 @@ import warnings
 
 from .constants import *
 from .cosmology_functions import *
-
+from .vac_rad_cosmic_history import *
 from .ftpot import *
 
 import gmpy2 as mp
@@ -199,7 +199,7 @@ class BubbleNucleationQuartic:
     Bubble nucleation class for the generic quartic potential
     uses an analytic approximation of the bounce action
     """
-    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False):
+    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False, assume_rad_dom=True):
         self.veff = veff
         self.Tc = veff.Tc
         self.T_test = veff.Tc
@@ -211,6 +211,21 @@ class BubbleNucleationQuartic:
         self.T0sq = veff.T0sq
         self.vev = veff.vev
         self.gstar_D = gstar_D
+
+        self.assume_rad_dom = assume_rad_dom
+        self.hubble2_data = None
+
+        if not assume_rad_dom:
+            # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
+            # BUT T_STAR DEPENDS ON HUBBLE
+            ch = CosmicHistoryVacuumRadiation(deltaV=veff(veff.vev, T=0.0), sigma=veff.wall_tension(), vw=1.0)
+
+            if ch.Teq < veff.Tc:
+                result = ch.solve_system()
+                rhoV = ch.rhoV(result.t, result.y)
+                # TODO(AT): fixx time_to_temp to not assume rad. dom.
+                self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
+                                              0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
 
         if Tstar is not None:
             self.Tstar = Tstar
@@ -248,6 +263,15 @@ class BubbleNucleationQuartic:
     def rate(self, T):
         return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
     
+    def hubble_rate_sq(self, T):
+        if self.hubble2_data is None:
+            return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
+        else:
+            if (T > self.Tc) or (T < self.Tc / 10):
+                return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
+            else:
+                return np.interp(T, self.hubble2_data[:,0], self.hubble2_data[:,1])
+
     def get_Tstar(self):
         # check SE/T close to T=Tc
         if self.verbose:
@@ -272,7 +296,7 @@ class BubbleNucleationQuartic:
     def get_Tstar_from_rate(self):
         # check SE/T close to T=Tc
         T_grid = np.linspace(sqrt(abs(self.T0sq)), self.Tc, 10000)
-        GammaByHstar = np.nan_to_num([self.rate(T)/power(hubble2_rad(T,gstar=gstar_sm(T)+self.gstar_D),2) for T in T_grid])
+        GammaByHstar = np.nan_to_num([self.rate(T)/power(self.hubble_rate_sq(T),2) for T in T_grid])
         star_id = np.argmin(abs(GammaByHstar - 1.0))
         T_star_2 = T_grid[star_id]
 

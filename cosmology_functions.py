@@ -1,11 +1,10 @@
 # Math imports
 
-
 from .constants import *
 
 
 import numpy as np
-from numpy import sqrt, log, exp, log10, power, sin, cos, tan
+from numpy import sqrt, log, exp, log10, power, sin, cos, tan, heaviside
 
 from scipy.optimize import fsolve, fmin, minimize, shgo, brute
 from scipy.signal import argrelmin

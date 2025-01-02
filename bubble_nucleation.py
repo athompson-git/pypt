@@ -208,7 +208,7 @@ class BubbleNucleationQuartic:
         self.c = veff.c
         self.d = veff.d
         self.lam = veff.lam
-        self.T0 = veff.T0
+        self.T0sq = veff.T0sq
         self.vev = veff.vev
         self.gstar_D = gstar_D
 
@@ -253,7 +253,7 @@ class BubbleNucleationQuartic:
         if self.verbose:
             print("SE/T = {} at T=Tc".format(self.bounce_action(self.Tc)))
         
-        T_grid = np.linspace(self.T0, 1.0*self.Tc, 10000000)
+        T_grid = np.linspace(np.sqrt(abs(self.T0sq)), 1.0*self.Tc, 10000000)
         s3ByTs = self.bounce_action(T_grid)
 
         mask = (s3ByTs>80.0)*(s3ByTs < 200.0)
@@ -271,7 +271,7 @@ class BubbleNucleationQuartic:
     
     def get_Tstar_from_rate(self):
         # check SE/T close to T=Tc
-        T_grid = np.linspace(self.T0, 1.0*self.Tc, 10000)
+        T_grid = np.linspace(sqrt(abs(self.T0sq)), self.Tc, 10000)
         GammaByHstar = np.nan_to_num([self.rate(T)/power(hubble2_rad(T,gstar=gstar_sm(T)+self.gstar_D),2) for T in T_grid])
         star_id = np.argmin(abs(GammaByHstar - 1.0))
         T_star_2 = T_grid[star_id]
@@ -341,27 +341,54 @@ class BounceActionEspinoza:
     Calculates the Euclidean action using Espinoza's method [1805.03680]
     Guesses phi0 = phi_- (take phi0 equal to the VEV at temperature T)
     """
-    def __init__(self, veff: VFT):
+    def __init__(self, veff: VFT, T_test):
         self.veff = veff
         self.dphi = 0.000001
+
+        # get maximum
+        test_phis = np.linspace(0.0, max(self.veff.get_mins(T_test)), 1000)
+        test_v = self.veff(test_phis, T_test)
+        max_id = np.argmax(test_v)
+        self.phiT = test_phis[max_id]
     
     def vt1(self, phi, phi0, T):
         return self.veff(phi, T) * (phi / phi0)
 
     def vt2(self, phi, phi0, T):
-        return self.vt1(phi, phi0, T) + (phi / (4*phi0**2))*(3*phi0*self.dVdphi(phi0, T) - 4*self.veff(phi0, T))*(phi - phi0)
+        return self.vt1(phi, phi0, T) + (phi / (4*phi0**2))*(3*phi0*self.dV_dphi(phi0, T) - 4*self.veff(phi0, T))*(phi - phi0)
 
     def vt3(self, phi, phi0, T):
-        return self.vt2(phi, phi0, T) + (phi / (4*phi0**3))*(3*phi0*self.dVdphi(phi0, T) - 8*self.veff(phi0, T))*(phi - phi0)**2
+        return self.vt2(phi, phi0, T) + (phi / (4*phi0**3))*(3*phi0*self.dV_dphi(phi0, T) - 8*self.veff(phi0, T))*(phi - phi0)**2
 
-    def vt4(self, phi, T):
-        pass
+    def vt4(self, phi, phi0, T):
+        phiT = self.phiT
+
+        phi0T = phi0 - phiT
+        c = 4*power(phiT*phi0, 2)*(phi0**2 - 2*phi0T*phiT)
+        Vt3T = self.vt3(phiT, phi0, T)
+        VT = self.veff(phiT, T)
+        dVt3Tdphi = self.dVt3_dphi(phiT, phi0, T)
+        d2Vt3Tdphi2 = self.d2Vt3_dphi2(phiT, phi0, T)
+
+        a0T = -6*(VT - Vt3T)*(phi0**2 - 6*phi0T*phiT) - 8*phiT*(phi0T - phiT)*phi0T*dVt3Tdphi \
+                + 3*power(phiT*phi0T, 2)*d2Vt3Tdphi2
+        
+        Ut3T = 4*(dVt3Tdphi)**2 + 6*(VT-Vt3T)*d2Vt3Tdphi2
+        a4 = (1/c)*(a0T - sqrt(a0T**2 - c*Ut3T))
+
+        return self.vt3(phi, phi0, T) + a4*power(phi*(phi-phi0), 2)
 
     def dV_dphi(self, phi, T):
         return (self.veff(phi+self.dphi, T) - self.veff(phi, T))/self.dphi
     
-    def dVt_dphi(self, phi, phi0, T):
+    def dVt3_dphi(self, phi, phi0, T):
         return (self.vt3(phi+self.dphi, phi0, T) - self.vt3(phi, phi0, T))/self.dphi
+    
+    def d2Vt3_dphi2(self, phi, phi0, T):
+        return (self.dVt3_dphi(phi+self.dphi, phi0, T) - self.dVt3_dphi(phi, phi0, T))/self.dphi
+    
+    def dVt_dphi(self, phi, phi0, T):
+        return (self.vt4(phi+self.dphi, phi0, T) - self.vt4(phi, phi0, T))/self.dphi
 
     def EuclideanActionVt(self, T, phi0=None):
         # Guess phi0 equal to the minumum phi_- or VEV value
@@ -369,7 +396,15 @@ class BounceActionEspinoza:
             phi0 = max(self.veff.get_mins(T))
 
         # make lambda for integrand and use quad
-        integrand = lambda phi: power(self.veff(phi, T) - self.vt3(phi, phi0, T), 2) / power(self.dVt_dphi(phi, phi0, T), 3)
+        integrand = lambda phi: power(self.veff(phi, T) - self.vt4(phi, phi0, T), 2) / power(self.dVt_dphi(phi, phi0, T), 3)
 
         # TODO: iterate on phi0 assumption to minimize SE
         return quad(integrand, 0.0, phi0)[0]
+    
+    def EuclideanActionVtIntegrand(self, phi, T, phi0=None):
+        # Guess phi0 equal to the minumum phi_- or VEV value
+        if phi0 is None:
+            phi0 = max(self.veff.get_mins(T))
+
+        # make lambda for integrand and use quad
+        return power(self.veff(phi, T) - self.vt3(phi, phi0, T), 2) / power(self.dVt_dphi(phi, phi0, T), 3)

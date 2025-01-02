@@ -306,21 +306,18 @@ class VEffGeneric(VFT):
         self.lam = lam
         self.c = c
         self.d = d
-        if vev is not None:
-            if self.c > vev*self.lam/3:
-                raise Exception("c > v lambda / 3, too large!")
-            
-            self.T0 = self.get_T0_from_vev(vev)
+        if vev is not None:            
+            self.T0sq = self.get_T0sq_from_vev(vev)
             self.vev = vev
         elif b is not None:
-            self.T0 = self.get_T0_from_B()
-            self.vev = self.phi_plus(self.T0)
+            self.T0sq = self.get_T0sq_from_B()
+            self.vev = self.phi_plus(self.T0sq)
         else:
             raise Exception("either the VEV or b must be set!")
         
         if verbose:
-            print("VEV = {}, T0={}".format(self.vev, self.T0))
-        Tc = self.get_Tc_from_T0(self.T0)
+            print("VEV = {}, T0^2={}".format(self.vev, self.T0sq))
+        Tc = self.get_Tc()
 
         bad_Tc = (np.isnan(Tc)) or (Tc < 0)
         if bad_Tc:
@@ -336,18 +333,15 @@ class VEffGeneric(VFT):
         self.d = d
 
         if vev is not None:
-            if self.c > vev*self.lam/3:
-                raise Exception("c > v lambda / 3, too large!")
-            
-            self.T0 = self.get_T0_from_vev(vev)
+            self.T0sq = self.get_T0sq_from_vev(vev)
             self.vev = vev
         elif b is not None:
-            self.T0 = self.get_T0_from_B()
+            self.T0sq = self.get_T0sq_from_B()
         else:
             raise Exception("either the VEV or b must be set!")
         
-        self.vev = self.phi_plus(self.T0)
-        Tc = self.get_Tc_from_T0(self.T0)
+        self.vev = self.phi_plus(self.T0sq)
+        Tc = self.get_Tc()
 
         bad_Tc = (np.isnan(Tc)) or (Tc < 0)
         if bad_Tc:
@@ -356,32 +350,43 @@ class VEffGeneric(VFT):
         self.renorm_mass_scale = vev
         self.Tc = Tc
     
-    def phi_plus(self, T0):
-        return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0**2))/(2*self.lam)
+    def phi_plus(self, T0sq):
+        return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0sq))/(2*self.lam)
+    
+    def phi_critical(self):
+        return self.Tc * (2*(self.a + self.c/self.Tc)/self.lam)
+    
+    def wall_tension(self):
+        # from thin wall approx
+        return power(self.phi_critical(), 3) * power(self.lam/2, 0.5) / 6
 
-    def get_T0_from_B(self):
-        def root_func(T0):
-            return self.b + (-self.d*T0**2 * self.phi_plus(T0)**2 - self.c*self.phi_plus(T0)**3 + self.lam*self.phi_plus(T0)**4 / 4)
+    def get_T0sq_from_B(self):
+        def root_func(T0sq):
+            return self.b + (-self.d*T0sq * self.phi_plus(T0sq)**2 - self.c*self.phi_plus(T0sq)**3 + self.lam*self.phi_plus(T0sq)**4 / 4)
         
         res = fsolve(root_func, [1.0])
         return res[0]
     
-    def get_T0_from_vev(self, vev):
-        return sqrt(self.lam * vev**2 - 3*self.c*vev)/sqrt(2*self.d)
+    def get_T0sq_from_vev(self, vev):
+        return (self.lam * vev**2 - 3*self.c*vev)/(2*self.d)
     
     def get_Tc_from_T0(self, T0):
         Tc_solution_1 = (-self.a*self.c + sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
         Tc_solution_2 = (-self.a*self.c - sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
-        print("Tc1 = {}, Tc2 = {}, Tc=T0={}".format(Tc_solution_1, Tc_solution_2, self.T0))
+        print("Tc1 = {}, Tc2 = {}, Tc=T0={}".format(Tc_solution_1, Tc_solution_2, np.sqrt(self.T0sq)))
         if not np.isnan(Tc_solution_1) and Tc_solution_1 > 0:
             return Tc_solution_1
         elif not np.isnan(Tc_solution_2) and Tc_solution_2 > 0:
             return Tc_solution_2
         else:
-            return self.T0
+            return np.sqrt(self.T0sq)
     
+    def get_Tc(self):
+        # from FKS
+        return (self.c*self.a + np.sqrt(self.lam*self.d*(self.c**2 + (self.lam*self.d - self.a**2)*self.T0sq)))/(self.lam*self.d - self.a**2)
+
     def a2(self, T):
-        return self.d * (T**2 - self.T0**2)
+        return self.d * (T**2 - self.T0sq)
     
     def a3(self, T):
         return -(self.a*T + self.c)
@@ -393,6 +398,7 @@ class VEffGeneric(VFT):
         return 2*self.d*T*phi**2 - self.a*phi**2
     
     def dSbyTdT(self, T):
+        # TODO(AT): this has a mistake in it, also self.T0 --> self.T0sq
         beta1 = 8.2938
         beta2 = -5.5330
         beta3 = 0.8180
@@ -410,4 +416,4 @@ class VEffGeneric(VFT):
         pass
 
     def __call__(self, phi, T):
-        return np.real(self.d * (T**2 - self.T0**2)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)
+        return np.real(self.d * (T**2 - self.T0sq)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)

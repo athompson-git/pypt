@@ -84,8 +84,8 @@ class FVFilling:
         return 1.238 * np.power(self.beta, 4) / (8*pi*self.vw**3)
 
 
-    # Eq 12 in Lu-Kawana-Xie
-    def fv_nuc_rate(self, t):
+    # Eq 12 in Liu-Kawana-Xie
+    def fv_nuc_rate(self, t, assume_const_scale_fact=False):
         self.integrand_list = []
         # tc --> (t4, t3, t2, t1) --> t
         ts_unordered = np.random.uniform(self.tc, t, (self.n_samples, 4))
@@ -99,11 +99,18 @@ class FVFilling:
 
         GammaStar = self.get_gamma_star()
         
-        self.integrand_list = [mp.mul(power(GammaStar, 4), mp.exp(self.beta*((ti[0]-self.tstar) + (ti[1]-self.tstar) + (ti[2]-self.tstar) + (ti[3]-self.tstar)))) \
-                        * scale_factor_int2_rad(ti[0], t) * a_ratio_rad(t, ti[0]) \
-                        * scale_factor_int2_rad(ti[1], t) * a_ratio_rad(t, ti[1]) \
-                            * scale_factor_int2_rad(ti[2], t) * a_ratio_rad(t, ti[2]) 
-                            * scale_factor_int2_rad(ti[3], t) * a_ratio_rad(t, ti[3]) for ti in ts_unordered]
+        if assume_const_scale_fact:
+            self.integrand_list = [mp.mul(power(GammaStar, 4), mp.exp(self.beta*((ti[0]-self.tstar) + (ti[1]-self.tstar) + (ti[2]-self.tstar) + (ti[3]-self.tstar)))) \
+                            * power(ti[0] - t, 2) \
+                            * power(ti[1] - t, 2) \
+                            * power(ti[2] - t, 2) 
+                            * power(ti[3] - t, 2) for ti in ts_unordered]
+        else:
+            self.integrand_list = [mp.mul(power(GammaStar, 4), mp.exp(self.beta*((ti[0]-self.tstar) + (ti[1]-self.tstar) + (ti[2]-self.tstar) + (ti[3]-self.tstar)))) \
+                                * scale_factor_int2_rad(ti[0], t) * a_ratio_rad(t, ti[0]) \
+                                * scale_factor_int2_rad(ti[1], t) * a_ratio_rad(t, ti[1]) \
+                                * scale_factor_int2_rad(ti[2], t) * a_ratio_rad(t, ti[2]) 
+                                * scale_factor_int2_rad(ti[3], t) * a_ratio_rad(t, ti[3]) for ti in ts_unordered]
 
         return mp.mul(mc_volume, mp.mul(prefactor, np.sum(self.integrand_list)))
     

@@ -23,7 +23,7 @@ import pkg_resources
 ###### assumes rad domination
 
 def temp_to_time(T, gstar=GSTAR_SM):
-    return sqrt(90/8/pi**3/gstar) * M_PL / T**2
+    return sqrt(90/8/pi**3/gstar_sm(T)) * M_PL / T**2
 
 def time_to_temp(t, gstar=GSTAR_SM):
     return sqrt(sqrt(90/pi**3/gstar/8) * M_PL / t)
@@ -35,7 +35,7 @@ def a_ratio_rad(ti, tj):
     return power(tj/ti, 1/2)
 
 def scale_factor_int2_rad(ti, t):
-    return power(-2*ti + 2*t*sqrt(ti/t), 2)
+    return power(2*ti - 2*sqrt(ti*t), 2)
 
 
 

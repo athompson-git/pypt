@@ -4,8 +4,8 @@ import warnings
 
 from .constants import *
 from .cosmology_functions import *
-from .vac_rad_cosmic_history import *
 from .ftpot import *
+from .vac_rad_cosmic_history import CosmicHistoryVacuumRadiation
 
 import gmpy2 as mp
 
@@ -218,12 +218,18 @@ class BubbleNucleationQuartic:
         if not assume_rad_dom:
             # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
             # BUT T_STAR DEPENDS ON HUBBLE
-            ch = CosmicHistoryVacuumRadiation(deltaV=veff(veff.vev, T=0.0), sigma=veff.wall_tension(), vw=1.0)
+            ch = CosmicHistoryVacuumRadiation(veff=veff, vw=1.0)
 
             if ch.Teq < veff.Tc:
-                result = ch.solve_system()
+                if verbose:
+                    print("Attempting to solve ivp...")
+                result = ch.solve_system(max_time=5.0)
+
+                if verbose:
+                    print("Solved ivp successfully!")
+
                 rhoV = ch.rhoV(result.t, result.y)
-                # TODO(AT): fixx time_to_temp to not assume rad. dom.
+                # TODO(AT): fix time_to_temp to not assume rad. dom.
                 self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
                                               0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
 
@@ -270,7 +276,7 @@ class BubbleNucleationQuartic:
             if (T > self.Tc) or (T < self.Tc / 10):
                 return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
             else:
-                return np.interp(T, self.hubble2_data[:,0], self.hubble2_data[:,1])
+                return np.interp(T, self.hubble2_data[::-1,0], self.hubble2_data[::-1,1])
 
     def get_Tstar(self):
         # check SE/T close to T=Tc
@@ -295,7 +301,7 @@ class BubbleNucleationQuartic:
     
     def get_Tstar_from_rate(self):
         # check SE/T close to T=Tc
-        T_grid = np.linspace(sqrt(abs(self.T0sq)), self.Tc, 10000)
+        T_grid = np.linspace(self.Tc/10, self.Tc, 10000)
         GammaByHstar = np.nan_to_num([self.rate(T)/power(self.hubble_rate_sq(T),2) for T in T_grid])
         star_id = np.argmin(abs(GammaByHstar - 1.0))
         T_star_2 = T_grid[star_id]

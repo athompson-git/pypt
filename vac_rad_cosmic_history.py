@@ -1,19 +1,25 @@
 from .ftpot import *
-from .bubble_nucleation import *
 from .cosmology_functions import *
 
 from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 
+
+
+
 def time_to_temp(t, gstar=GSTAR_SM):
     return sqrt(sqrt(90/pi**3/gstar/8) * M_PL / t)
 
+
+
+
 class CosmicHistoryVacuumRadiation:
-    def __init__(self, deltaV, sigma, vw, veff: VEffGeneric):
-        self.dV = deltaV
-        self.bn = BubbleNucleationQuartic(veff)
+    def __init__(self, veff: VEffGeneric, vw):
         self.vw = vw
-        self.sigma = sigma
+        self.veff = veff
+
+        self.dV = veff.vev**4 * ((1/8) - 0.5*veff.c/veff.vev) / 4
+        self.sigma = veff.wall_tension()
 
         # get the equality time
 
@@ -68,12 +74,26 @@ class CosmicHistoryVacuumRadiation:
 
     # Helper functions
     # Big Gamma
+    def bounce_action(self, T):
+        # Returns S3/T given the parameters in Veff in thin-wall approx
+        delta = 8*self.veff.a4(T) * self.veff.a2(T) / self.veff.a3(T)**2
+        beta1 = 8.2938
+        beta2 = -5.5330
+        beta3 = 0.8180
+        return np.clip((-pi * self.veff.a3(T) * 8*sqrt(2)*power(2 - delta, -2) \
+                        *sqrt(abs(delta)/2) \
+            * (beta1*delta + beta2*delta**2 + beta3*delta**3) \
+                / power(self.veff.a4(T), 1.5) / 81 / T), a_min=0.0, a_max=np.inf)
+
+    def rate(self, T):
+        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
+    
     def decay_rate(self, tau):
         # TODO(AT): go away from rad domination time-to-temperature conversion
         # returns dimensionless decay rate
         # convert temp to time
         T = time_to_temp(sqrt(2) * tau / sqrt(self.Heq2))  # convert from dimensionless time
-        dimensionless_rate = 4 * self.bn.rate(T) / power(self.Heq2, 2)
+        dimensionless_rate = 4 * self.rate(T) / power(self.Heq2, 2)
         return dimensionless_rate
 
     # Vacuum energy fraction
@@ -101,7 +121,7 @@ class CosmicHistoryVacuumRadiation:
         
         # Time span for the solution
         t_span = (self.Tau_crit, max_time*self.Tau_crit)  # From t=0 to t=10
-        t_eval = np.linspace(t_span[0], t_span[1], 1000)  # Points to evaluate the solution
+        t_eval = np.linspace(t_span[0], t_span[1], 200)  # Points to evaluate the solution
 
 
         return solve_ivp(system_of_odes, t_span, y0, t_eval=t_eval, method='RK45')

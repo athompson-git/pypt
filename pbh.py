@@ -151,8 +151,12 @@ class FVFilling:
 
 
     # Eq 15
-    def dndR(self, R):
+    def dndR(self, R, use_full_int=False):
         tp = self.tstar + R/self.vw
+        if use_full_int:
+            fv_frac = self.fv_nuc_rate(tp)
+            return mp.mul((1/self.vw), mp.mul(mp.mul((1-self.f_fv(tp)) , fv_frac), power(a_ratio_rad(self.tstar, tp), 4)))
+        
         if self.betaByHstar > 5.0:
             fv_frac = self.fv_nuc_rate_high_beta(tp) #
         else:

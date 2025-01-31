@@ -311,7 +311,7 @@ class VEffGeneric(VFT):
             self.vev = vev
         elif b is not None:
             self.T0sq = self.get_T0sq_from_B()
-            self.vev = self.phi_plus(self.T0sq)
+            self.vev = self.phi_plus_from_T0(self.T0sq)
         else:
             raise Exception("either the VEV or b must be set!")
         
@@ -321,7 +321,7 @@ class VEffGeneric(VFT):
 
         bad_Tc = (np.isnan(Tc)) or (Tc < 0)
         if bad_Tc:
-            raise Exception("Bad Tc found! Either imaginary or negative.")
+            print("Bad Tc found! Either imaginary or negative.")
 
         super().__init__(renorm_mass=self.vev, verbose=verbose, is_real=False, Tc=Tc)
     
@@ -340,17 +340,17 @@ class VEffGeneric(VFT):
         else:
             raise Exception("either the VEV or b must be set!")
         
-        self.vev = self.phi_plus(self.T0sq)
+        self.vev = self.phi_plus_from_T0(self.T0sq)
         Tc = self.get_Tc()
 
         bad_Tc = (np.isnan(Tc)) or (Tc < 0)
         if bad_Tc:
-            raise Exception("Bad Tc found! Either imaginary or negative.")
+            print("Bad Tc found! Either imaginary or negative.")
         
         self.renorm_mass_scale = vev
         self.Tc = Tc
     
-    def phi_plus(self, T0sq):
+    def phi_plus_from_T0(self, T0sq):
         return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0sq))/(2*self.lam)
     
     def phi_critical(self):
@@ -362,7 +362,8 @@ class VEffGeneric(VFT):
 
     def get_T0sq_from_B(self):
         def root_func(T0sq):
-            return self.b + (-self.d*T0sq * self.phi_plus(T0sq)**2 - self.c*self.phi_plus(T0sq)**3 + self.lam*self.phi_plus(T0sq)**4 / 4)
+            return self.b + (-self.d*T0sq * self.phi_plus_from_T0(T0sq)**2 - self.c*self.phi_plus_from_T0(T0sq)**3 \
+                             + self.lam*self.phi_plus_from_T0(T0sq)**4 / 4)
         
         res = fsolve(root_func, [1.0])
         return res[0]

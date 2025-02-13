@@ -83,7 +83,25 @@ class CosmicHistoryVacuumRadiation:
         return np.clip((-pi * self.veff.a3(T) * 8*sqrt(2)*power(2 - delta, -2) \
                         *sqrt(abs(delta)/2) \
             * (beta1*delta + beta2*delta**2 + beta3*delta**3) \
-                / power(self.veff.a4(T), 1.5) / 81 / T), a_min=0.0, a_max=np.inf)
+                / power(self.veff.a4(T), 1.5) / 81 / T), a_min=0.0, a_max=np.inf)  # Testing factor of 10 reduction for FKS repro
+    
+    def kappa_func(self, T):
+        return self.veff.lam * 2 * self.veff.d * (T**2 - self.veff.T0sq) / power(3 * (self.veff.a*T + self.veff.c), 2)
+
+    def b3bar(self, kappa):
+        return (16/243) * (1 - 38.23*(kappa - 2/9) + 115.26*(kappa - 2/9)**2 + 58.07*sqrt(kappa)*(kappa - 2/9)**2 + 229.07*kappa*(kappa - 2/9)**2)
+
+    def bounce_action_fks(self, T):
+        prefactor = power(2 * self.veff.d * (T**2 - self.veff.T0sq), 3/2) / power(3 * (self.veff.a*T + self.veff.c), 2)
+
+        kappa = self.kappa_func(T)
+        kappa_gtr_zero = kappa > 0
+
+        kappa_c = 0.52696
+
+        return np.nan_to_num(np.clip(kappa_gtr_zero * (prefactor*(2*pi/(3*(kappa - kappa_c)**2)) * self.b3bar(kappa) / T) \
+                + (1 - kappa_gtr_zero) * (prefactor*(27*pi/2) * (1 + np.exp(-power(abs(kappa), -0.5))) / (1 + abs(kappa)/kappa_c) / T),
+                        a_min=0.0, a_max=np.inf))
 
     def rate(self, T):
         return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))

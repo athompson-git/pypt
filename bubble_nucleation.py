@@ -199,7 +199,7 @@ class BubbleNucleationQuartic:
     Bubble nucleation class for the generic quartic potential
     uses an analytic approximation of the bounce action
     """
-    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False, assume_rad_dom=True):
+    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False, assume_rad_dom=True, use_fks_action=False):
         self.veff = veff
         self.Tc = veff.Tc
         self.T_test = veff.Tc
@@ -213,7 +213,9 @@ class BubbleNucleationQuartic:
         self.gstar_D = gstar_D
 
         self.assume_rad_dom = assume_rad_dom
+        self.use_fks_action = use_fks_action
         self.hubble2_data = None
+        self.Tperc = None
 
         if not assume_rad_dom:
             # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
@@ -229,26 +231,34 @@ class BubbleNucleationQuartic:
                     print("Solved ivp successfully!")
 
                 rhoV = ch.rhoV(result.t, result.y)
+                
                 # TODO(AT): fix time_to_temp to not assume rad. dom.
+                # Create dataset of [T, Hubble^2]
                 self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
                                               0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
+                idx_perc = np.argmin(rhoV/rhoV[0] - 0.7)
+                self.Tperc = self.hubble2_data[idx_perc,0]
 
+        # Set T_star and T_perc (if different)
         if Tstar is not None:
             self.Tstar = Tstar
         else:
             self.Tstar = self.get_Tstar_from_rate()
         
+        if self.Tperc is None:
+            self.Tperc = self.Tstar
+
         try:
             if verbose:
-                print("Found T* = {} for S3/T = {}".format(self.Tstar, self.bounce_action(self.Tstar)))
+                print("Found T* = {} for S3/T = {}".format(self.Tperc, self.bounce_action(self.Tperc)))
 
-            self.deltaT = 0.000001*self.Tstar
+            self.deltaT = 0.000001*self.Tperc
 
-            self.phi_plus = max(self.veff.get_mins(T=self.Tstar))
-            self.phi_plus_dT = max(self.veff.get_mins(T=self.Tstar+self.deltaT))
+            self.phi_plus = max(self.veff.get_mins(T=self.Tperc))
+            self.phi_plus_dT = max(self.veff.get_mins(T=self.Tperc+self.deltaT))
             
-            self.SE_T = self.bounce_action(self.Tstar)
-            self.SE_T_plus_dT = self.bounce_action(self.Tstar+self.deltaT)
+            self.SE_T = self.bounce_action(self.Tperc)
+            self.SE_T_plus_dT = self.bounce_action(self.Tperc+self.deltaT)
         except:
             raise Exception("Unable to find bounce action solutions or T*!")
 
@@ -257,6 +267,7 @@ class BubbleNucleationQuartic:
 
     def bounce_action(self, T):
         # Returns S3/T given the parameters in Veff in thin-wall approx
+        # see 2304.10084
         delta = 8*self.veff.a4(T) * self.veff.a2(T) / self.veff.a3(T)**2
         beta1 = 8.2938
         beta2 = -5.5330
@@ -265,10 +276,38 @@ class BubbleNucleationQuartic:
                         *sqrt(abs(delta)/2) \
             * (beta1*delta + beta2*delta**2 + beta3*delta**3) \
                 / power(self.veff.a4(T), 1.5) / 81 / T), a_min=0.0, a_max=np.inf)
-
-    def rate(self, T):
-        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
     
+    def kappa_func(self, T):
+        return self.veff.lam * 2 * self.veff.d * (T**2 - self.veff.T0sq) / power(3 * (self.veff.a*T + self.veff.c), 2)
+
+    def b3bar(self, kappa):
+        return (16/243) * (1 - 38.23*(kappa - 2/9) + 115.26*(kappa - 2/9)**2 + 58.07*sqrt(kappa)*(kappa - 2/9)**2 + 229.07*kappa*(kappa - 2/9)**2)
+
+    def bounce_action_fks(self, T):
+        prefactor = power(2 * self.veff.d * (T**2 - self.veff.T0sq), 3/2) / power(3 * (self.veff.a*T + self.veff.c), 2)
+
+        kappa = self.kappa_func(T)
+        kappa_gtr_zero = kappa > 0
+
+        kappa_c = 0.52696
+
+        return kappa_gtr_zero * (prefactor*(2*pi/(3*(kappa - kappa_c)**2)) * self.b3bar(kappa) / T) \
+                + (1 - kappa_gtr_zero) * (prefactor*(27*pi/2) * (1 + np.exp(-power(abs(kappa), -0.5))) / (1 + abs(kappa)/kappa_c) / T)
+    
+    def rate(self, T):
+        if self.use_fks_action:
+            return np.real(T**4 * power(abs(self.bounce_action_fks(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action_fks(T))))
+        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
+
+    def fv_fraction(self, t):
+        # assume vwall = 1 for the below vacuum fraction
+        def integrand(tprime):
+            return (-4*pi/3) * self.rate(time_to_temp(tprime, gstar=self.gstar_D + gstar_sm(time_to_temp(tprime)))) \
+                * np.power(-2*tprime + 2*sqrt(tprime*t), 3)  # assumes rad dom
+        
+        res = quad(integrand, temp_to_time(self.Tc), t)[0]
+        return np.exp(res)
+
     def hubble_rate_sq(self, T):
         if self.hubble2_data is None:
             return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
@@ -330,31 +369,30 @@ class BubbleNucleationQuartic:
 
     def alpha(self):
         # Latent heat
-        prefactor = 30 / pi**2 / (GSTAR_SM) / self.Tstar**4
+        prefactor = 30 / pi**2 / (GSTAR_SM) / self.Tperc**4
 
-        deltaV = -self.veff(self.phi_plus, self.Tstar)
-        dVdT = (self.veff(self.phi_plus_dT, self.Tstar+self.deltaT) - self.veff(self.phi_plus, self.Tstar))/(self.deltaT)
-        #dVdT = self.dVdT(self.phi_plus, self.Tstar)
+        deltaV = -self.veff(self.phi_plus, self.Tperc)
+        dVdT = (self.veff(self.phi_plus_dT, self.Tperc+self.deltaT) - self.veff(self.phi_plus, self.Tperc))/(self.deltaT)
 
-        return prefactor * (deltaV + self.Tstar * dVdT / 4)
+        return prefactor * (deltaV + self.Tperc * dVdT / 4)
 
     def betaByHstar(self, numeric=True):
         # Get the derivative of S3/T
         if numeric:
             dSdT = abs(self.SE_T_plus_dT - self.SE_T) / self.deltaT
         else:
-            dSdT = self.dSbyTdT(self.Tstar)
-        return self.Tstar * dSdT
+            dSdT = self.dSbyTdT(self.Tperc)
+        return self.Tperc * dSdT
 
     def vw(self):
         alpha = self.alpha()
-        deltaV = -self.veff(self.phi_plus, self.Tstar)
+        deltaV = -self.veff(self.phi_plus, self.Tperc)
 
         # Jouget velocity
         vJ = (sqrt(2*alpha/3 + alpha**2) + sqrt(1/3))/(1+alpha)
 
         # radiation density
-        rho_r = pi**2 * GSTAR_SM * self.Tstar**4 / 30
+        rho_r = pi**2 * GSTAR_SM * self.Tperc**4 / 30
 
         #  previous approx: return (1/sqrt(3) + sqrt(alpha**2 + 2*alpha/3))/(1+alpha)
 

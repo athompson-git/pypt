@@ -350,6 +350,13 @@ class VEffGeneric(VFT):
         self.renorm_mass_scale = vev
         self.Tc = Tc
     
+    def get_vev(self, T):
+        phi1 = (3*(self.c + self.a*T) - sqrt(9*(self.c + self.a*T)**2 - 8*self.d*self.lam*(T**2 - self.T0sq)))/(2*self.lam)
+        phi2 = (3*(self.c + self.a*T) + sqrt(9*(self.c + self.a*T)**2 - 8*self.d*self.lam*(T**2 - self.T0sq)))/(2*self.lam)
+        vev_list = [0.0, phi1, phi2]
+
+        return max(np.real(vev_list))
+
     def phi_plus_from_T0(self, T0sq):
         return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0sq))/(2*self.lam)
     

@@ -23,22 +23,38 @@ class CosmicHistoryVacuumRadiation:
 
         # get the equality time
 
-        Heq2, Teq = self.get_equality_quantities()
+        Heq2, Teq, teq = self.get_equality_quantities()
         self.Heq2 = Heq2
         self.Teq = Teq
+        self.teq = teq
 
         self.Tau_crit = temp_to_time(veff.Tc) * sqrt(Heq2) / sqrt(2)  # dimensionless
 
     # Solve for time of equality
     def get_equality_quantities(self):
-        def f(x):
-            return (2*pi**2 / 90) * gstar_sm(x) * x**4 - (2/3)*self.dV
+        # Put temperatures on a grid
+        temps = np.linspace(self.veff.Tc/50, self.veff.Tc, 200)
+
+        # Get the VEVs at each T
+        phi_vevs_T = np.array([self.veff.get_vev(T) for T in temps])
+
+        # Check the potential difference between the VEV and 0 at each T
+        dV_by_T = np.array([np.clip(self.veff(0.0, T)-self.veff(phi_vevs_T[i], T),
+                                    a_min=0.0, a_max=np.inf) for i,T in enumerate(temps)])
         
-        root = fsolve(f, [0])
-        Teq = max(root)
+        # Find where we have the most equality between rho_R and rho_V
+        rho_R = (pi**2 / 30) * gstar_sm(temps) * temps**4
 
-        return (2/3)*self.dV/(M_PL**2), Teq
+        if not np.any(rho_R < dV_by_T):
+            return None, None, None
 
+        id_equality = np.argmin(abs(dV_by_T - rho_R))
+        Teq = temps[id_equality]
+        teq = temp_to_time(Teq)
+        rhoV_eq = dV_by_T[id_equality]
+
+        # Return Hubble^2, T_eq and t_eq (temp and time in natural units)
+        return (2/3)*rhoV_eq/(M_PL**2), Teq, teq
 
     # scale factor
     def da_dTau(self, tau, y):

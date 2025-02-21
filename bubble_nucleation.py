@@ -202,6 +202,7 @@ class BubbleNucleationQuartic:
     def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False, assume_rad_dom=True, use_fks_action=False):
         self.veff = veff
         self.Tc = veff.Tc
+        self.tc = temp_to_time(veff.Tc)
         self.T_test = veff.Tc
         self.verbose = verbose
         self.a = veff.a
@@ -216,11 +217,15 @@ class BubbleNucleationQuartic:
         self.use_fks_action = use_fks_action
         self.hubble2_data = None
         self.Tperc = None
+        self.tperc = None
+
+        self.teq = None
 
         if not assume_rad_dom:
             # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
             # BUT T_STAR DEPENDS ON HUBBLE
             ch = CosmicHistoryVacuumRadiation(veff=veff, vw=1.0)
+            self.teq = ch.teq
 
             if ch.Teq < veff.Tc:
                 if verbose:
@@ -233,11 +238,14 @@ class BubbleNucleationQuartic:
                 rhoV = ch.rhoV(result.t, result.y)
                 
                 # TODO(AT): fix time_to_temp to not assume rad. dom.
-                # Create dataset of [T, Hubble^2]
+                # Create dataset of [T, Hubble^2] and [t, a(t)]
+                self.scale_fact_data = np.array([sqrt(2) * result.t / sqrt(ch.Heq2),
+                                                result.y[0]]).transpose()
                 self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
                                               0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
                 idx_perc = np.argmin(rhoV/rhoV[0] - 0.7)
                 self.Tperc = self.hubble2_data[idx_perc,0]
+                self.tperc = temp_to_time(self.Tperc)
 
         # Set T_star and T_perc (if different)
         if Tstar is not None:
@@ -247,6 +255,7 @@ class BubbleNucleationQuartic:
         
         if self.Tperc is None:
             self.Tperc = self.Tstar
+            self.tperc = temp_to_time(self.Tperc)
 
         try:
             if verbose:
@@ -254,8 +263,8 @@ class BubbleNucleationQuartic:
 
             self.deltaT = 0.000001*self.Tperc
 
-            self.phi_plus = max(self.veff.get_mins(T=self.Tperc))
-            self.phi_plus_dT = max(self.veff.get_mins(T=self.Tperc+self.deltaT))
+            self.phi_plus = self.veff.get_vev(self.Tperc) # max(self.veff.get_mins(T=self.Tperc))
+            self.phi_plus_dT = self.veff.get_vev(self.Tperc+self.deltaT) # max(self.veff.get_mins(T=self.Tperc+self.deltaT))
             
             self.SE_T = self.bounce_action(self.Tperc)
             self.SE_T_plus_dT = self.bounce_action(self.Tperc+self.deltaT)
@@ -265,6 +274,7 @@ class BubbleNucleationQuartic:
     def veff_fixed_T(self, phi):
         return self.veff(phi, self.T_test)
 
+    # FUNCTIONS FOR THE ACTION AND NUCLEATION RATE
     def bounce_action(self, T):
         # Returns S3/T given the parameters in Veff in thin-wall approx
         # see 2304.10084
@@ -299,13 +309,32 @@ class BubbleNucleationQuartic:
             return np.real(T**4 * power(abs(self.bounce_action_fks(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action_fks(T))))
         return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
 
-    def fv_fraction(self, t):
+    # FUNCTIONS FOR THE FALSE VACUUM FRACTION AND EVOLUTION
+    def scale_factor(self, t):
+        # Normalized to a(teq) = 1
+        t_mask = t - self.teq
+        # Return radiation domination scaling before teq
+        return np.heaviside(-t_mask, 1.0)*power(t/self.teq, 0.5) \
+            + np.heaviside(t_mask, 0.0)*np.interp(t, self.scale_fact_data[:,0], self.scale_fact_data[:,1])
+
+    def R_bubble(self, tprime):
+        # Returns the Radius of the vacuum bubble at time tprime
+        # Integrates from self.T_perc
+        delta_t = (self.tperc - tprime) / 100
+        t_vals = np.arange(tprime, self.tperc + delta_t, delta_t)
+
+        return np.sum([delta_t * (self.vw() / self.scale_factor(t)) for t in t_vals])
+
+    def p_surv_false_vacuum(self, r_fv):
+        # Uses FKS calculation for survival probability of patches with radius r_fv
         # assume vwall = 1 for the below vacuum fraction
+        # TODO: modify to use hubble data
+        # Integrand: rate * scale factor^3 * volume factor
         def integrand(tprime):
             return (-4*pi/3) * self.rate(time_to_temp(tprime, gstar=self.gstar_D + gstar_sm(time_to_temp(tprime)))) \
-                * np.power(-2*tprime + 2*sqrt(tprime*t), 3)  # assumes rad dom
+                * np.power(self.scale_factor(tprime) * (self.R_bubble(tprime) + r_fv), 3)
         
-        res = quad(integrand, temp_to_time(self.Tc), t)[0]
+        res = quad(integrand, self.tc, self.tperc)[0]
         return np.exp(res)
 
     def hubble_rate_sq(self, T):

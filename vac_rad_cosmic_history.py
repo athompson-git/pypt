@@ -33,6 +33,23 @@ class CosmicHistoryVacuumRadiation:
     # Solve for time of equality
     def get_equality_quantities(self):
         # Put temperatures on a grid
+        temps = np.linspace(self.veff.Tc/50, self.veff.Tc*50.0, 1000)
+
+        # Find where we have the most equality between rho_R and rho_V
+        rho_R = (pi**2 / 30) * gstar_sm(temps) * temps**4
+
+        if not np.any(rho_R < self.dV):
+            return None, None, None
+
+        id_equality = np.argmin(abs(self.dV - rho_R))
+        Teq = temps[id_equality]
+        teq = temp_to_time(Teq)
+
+        # Return Hubble^2, T_eq and t_eq (temp and time in natural units)
+        return (2/3)*self.dV/(M_PL**2), Teq, teq
+    
+    def get_equality_quantities_tperc(self):
+        # Put temperatures on a grid
         temps = np.linspace(self.veff.Tc/50, self.veff.Tc, 200)
 
         # Get the VEVs at each T

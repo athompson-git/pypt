@@ -5,6 +5,7 @@ from scipy.integrate import solve_ivp
 from scipy.optimize import fsolve
 
 
+M_PL_FKS = M_PL * np.power(8*pi, -0.5)
 
 
 def time_to_temp(t, gstar=GSTAR_SM):
@@ -46,7 +47,7 @@ class CosmicHistoryVacuumRadiation:
         teq = temp_to_time(Teq)
 
         # Return Hubble^2, T_eq and t_eq (temp and time in natural units)
-        return (2/3)*self.dV/(M_PL**2), Teq, teq
+        return (2/3)*self.dV/(M_PL_FKS**2), Teq, teq
     
     def get_equality_quantities_tperc(self):
         # Put temperatures on a grid
@@ -71,7 +72,7 @@ class CosmicHistoryVacuumRadiation:
         rhoV_eq = dV_by_T[id_equality]
 
         # Return Hubble^2, T_eq and t_eq (temp and time in natural units)
-        return (2/3)*rhoV_eq/(M_PL**2), Teq, teq
+        return (2/3)*rhoV_eq/(M_PL_FKS**2), Teq, teq
 
     # scale factor
     def da_dTau(self, tau, y):
@@ -153,7 +154,7 @@ class CosmicHistoryVacuumRadiation:
 
     # Vacuum energy density
     def rhoV(self, tau, y):
-        return (2*self.dV / (3*self.Heq2*power(M_PL, 2))) * np.exp(-self.I_frac(tau, y[6], y[2], y[3], y[4], y[5]))
+        return (2*self.dV / (3*self.Heq2*power(M_PL_FKS, 2))) * np.exp(-self.I_frac(tau, y[6], y[2], y[3], y[4], y[5]))
 
     def solve_system(self, max_time=20):
         # Initial conditions

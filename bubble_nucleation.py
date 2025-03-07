@@ -227,33 +227,31 @@ class BubbleNucleationQuartic:
             ch = CosmicHistoryVacuumRadiation(veff=veff, vw=1.0)
             self.teq = ch.teq
 
-            if ch.Teq < veff.Tc:
-                if verbose:
-                    print("Attempting to solve ivp...")
-                result = ch.solve_system(max_time=5.0)
+            if verbose:
+                print("Attempting to solve ivp...")
+            result = ch.solve_system(max_time=10.0)
 
-                if verbose:
-                    print("Solved ivp successfully!")
+            if verbose:
+                print("Solved ivp successfully!")
 
-                rhoV = ch.rhoV(result.t, result.y)
-                
-                # TODO(AT): fix time_to_temp to not assume rad. dom.
-                # Create dataset of [T, Hubble^2] and [t, a(t)]
-                self.scale_fact_data = np.array([sqrt(2) * result.t / sqrt(ch.Heq2),
-                                                result.y[0]]).transpose()
-                self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
-                                              0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
-                idx_perc = np.argmin(rhoV/rhoV[0] - 0.7)
-                self.Tperc = self.hubble2_data[idx_perc,0]
-                self.tperc = temp_to_time(self.Tperc)
+            rhoV = ch.rhoV(result.t, result.y)
+            
+            # TODO(AT): fix time_to_temp to not assume rad. dom.
+            # Create dataset of [T, Hubble^2] and [t, a(t)]
+            self.scale_fact_data = np.array([sqrt(2) * result.t / sqrt(ch.Heq2),
+                                            result.y[0]]).transpose()
+            self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
+                                            0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
+            idx_perc = np.argmin(rhoV/rhoV[0] - 0.7)
+            self.Tperc = self.hubble2_data[idx_perc,0]
+            self.Tstar = self.Tperc
+            self.tperc = temp_to_time(self.Tperc)
 
-        # Set T_star and T_perc (if different)
-        if Tstar is not None:
-            self.Tstar = Tstar
-        else:
-            self.Tstar = self.get_Tstar_from_rate()
-        
+            self.cosmic_hist_result = result
+            self.rhoV_history = rhoV
+
         if self.Tperc is None:
+            self.Tstar = self.get_Tstar_from_rate()
             self.Tperc = self.Tstar
             self.tperc = temp_to_time(self.Tperc)
 

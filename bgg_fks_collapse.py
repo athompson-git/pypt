@@ -5,14 +5,14 @@ The solution to the EoM is for a false vacuum patch collapsing with the expansio
 into a primordial black hole.
 
 References:
-
+Dynamics of false-vacuum bubbles, Blau, Guendelman, Guth (1987)
+Revisiting formation of primordial black holes in a supercooled first-order phase
+transition, Flores, Kusenko, Sasaki (2024) [2402.13341]
 
 """
 
-
 from scipy.integrate import solve_ivp
 from scipy.constants import pi
-import matplotlib.pyplot as plt
 
 from .constants import *
 from .cosmology_functions import *

@@ -136,7 +136,7 @@ class FKSCollapse:
         test_z = np.linspace(0.0, z_m, 10000)  # only check values up to the max to get the left crossing point
         z_TP = test_z[np.argmin(abs(self.Uz(test_z) - E_pbh))]
 
-        z_fv = self.z(r_fv)
+        z_fv = self.z(r_fv, m_pbh)
 
         if z_fv <= z_sc:
             print("False vacuum patch radius already smaller than Schwarzchild radius...")

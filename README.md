@@ -54,3 +54,12 @@ self.hubble2_data = 0.5 * ch.Heq2 * (rhoV + result.y[1])
 ```
 Note that, as described in FKS, this solution only applies if the equilibrium point takes place after the critical temperature, $T_{eq} < T_c$. Before then we assume the universe is radiation dominated, since the scalar field would not have acquired a metastable vacuum before $T_c$.
 
+## PBH Collapse *a la* Flores, Kusenko, Sasaki (FKS, 2024) and Blau Guendelman, Guth (1987)
+In ```bgg_fks_collapse.py``` we provide a class that takes in the vacuum potential energy density difference,
+the bubble wall tension, and the bubble wall velocity and calculates a number of things related to the possibility and
+time to collapse to a PBH. For example,
+
+```
+col = FKSCollapse(deltaV=0.01, sigma=0.3, vw=1.0)
+```
+for $\Delta V$ in GeV$^4$, $\sigma$ in GeV$^3$. 

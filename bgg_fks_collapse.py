@@ -180,7 +180,7 @@ class FKSCollapse:
         def integrand(z):
             return 1 / sqrt(E_pbh - self.Uz(z))
         
-        tau = quad(integrand, z_sc, z0)  # dimensionless time
+        tau = quad(integrand, z_sc, z0)[0]  # dimensionless time
 
         return tau * (2 * sqrt(self.Hsigma2)) / (self.HV2 + self.Hsigma2)  # convert back to GeV^-1
     

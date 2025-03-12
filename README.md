@@ -62,4 +62,9 @@ time to collapse to a PBH. For example,
 ```
 col = FKSCollapse(deltaV=0.01, sigma=0.3, vw=1.0)
 ```
-for $\Delta V$ in GeV$^4$, $\sigma$ in GeV$^3$. 
+for $\Delta V$ in GeV^4, $\sigma$ in GeV^3. One can ask whether a PBH will form for a false vacuum bubble nucleated
+with radius ```r_fv```;
+```
+does_pbh_form = col.does_pbh_form(r_fv)
+```
+returns a ```True``` or ```False```.

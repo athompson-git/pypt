@@ -165,14 +165,22 @@ class FKSCollapse:
         return power(m_tp_prefact / self.Uz(z0), 3/2)
 
     def get_collapse_time(self, r_fv):
+        does_collapse = self.does_pbh_form(r_fv)
+        if not does_collapse:
+            return np.inf
+
         m_pbh = self.M0(r_fv)
         E_pbh = self.E0(m_pbh)
         z_sc = self.gamma**2 / abs(E_pbh)  # Schwarzchild radius
+        z0 = self.z(r_fv, m_pbh)
+
+        if z0 <= z_sc:
+            return 0.0  # collapse already happens
 
         def integrand(z):
             return 1 / sqrt(E_pbh - self.Uz(z))
         
-        tau = quad(integrand, z_sc, self.z(r_fv, m_pbh))  # dimensionless time
+        tau = quad(integrand, z_sc, z0)  # dimensionless time
 
         return tau * (2 * sqrt(self.Hsigma2)) / (self.HV2 + self.Hsigma2)  # convert back to GeV^-1
     

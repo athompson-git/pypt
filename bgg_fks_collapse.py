@@ -145,7 +145,36 @@ class FKSCollapse:
             return True
         
         return False
+    
+    def get_crit_mass(self):
+        mbar = 4*pi*M_PL_FKS**2 / sqrt(self.HV2)
+        z_m = np.power(0.5*sqrt(8 + (1 - 0.5*self.gamma**2)**2) - 0.5*(1 - 0.5*self.gamma**2), 1/3)
 
+        return mbar * power(self.gamma * z_m**2, 2) * sqrt(1 - self.gamma**2 / 4) \
+            / (3*sqrt(3) * power(power(z_m, 6) - 1, 3/2))
+    
+    def get_M_at_zTP(self):
+        """
+        Find the mass in GeV that would intersect with z_TP
+        """
+        z0 = power((self.HV2 + self.Hsigma2) \
+                   /((4*pi/3)*self.rhoV - 8*pi**2 * G_NEWTON_FKS*self.sigma**2)/(2*G_NEWTON_FKS), 1/3)
+        
+        m_tp_prefact = (-4 * self.eta**2) / ((2 * G_NEWTON_FKS)**(2/3) * self.HV2**(1/3) * (1 + self.eta**2)**(4/3))
+
+        return power(m_tp_prefact / self.Uz(z0), 3/2)
+
+    def get_collapse_time(self, r_fv):
+        m_pbh = self.M0(r_fv)
+        E_pbh = self.E0(m_pbh)
+        z_sc = self.gamma**2 / abs(E_pbh)  # Schwarzchild radius
+
+        def integrand(z):
+            return 1 / sqrt(E_pbh - self.Uz(z))
+        
+        tau = quad(integrand, z_sc, self.z(r_fv, m_pbh))  # dimensionless time
+
+        return tau * (2 * sqrt(self.Hsigma2)) / (self.HV2 + self.Hsigma2)  # convert back to GeV^-1
     
     # Simulation functions
     def simulate_z(self, r0, dr0, time_span=(0, 1e10)):

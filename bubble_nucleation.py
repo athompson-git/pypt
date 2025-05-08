@@ -220,6 +220,7 @@ class BubbleNucleationQuartic:
         self.tperc = None
 
         self.teq = None
+        self.scale_fact_data = None
 
         if not assume_rad_dom:
             # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
@@ -321,17 +322,27 @@ class BubbleNucleationQuartic:
         delta_t = (self.tperc - tprime) / 100
         t_vals = np.arange(tprime, self.tperc + delta_t, delta_t)
 
-        return np.sum([delta_t * (self.vw() / self.scale_factor(t)) for t in t_vals])
+        if self.scale_fact_data is not None:
+            return np.sum([delta_t * (self.vw()*self.scale_factor(self.tperc) / self.scale_factor(t)) \
+                        for t in t_vals])
+        
+        return np.sum([delta_t * (self.vw()*a_ratio_rad(t, self.tperc)) \
+                    for t in t_vals])
 
     def p_surv_false_vacuum(self, r_fv):
         # Uses FKS calculation for survival probability of patches with radius r_fv
         # assume vwall = 1 for the below vacuum fraction
-        # TODO: modify to use hubble data
         # Integrand: rate * scale factor^3 * volume factor
+        if self.scale_fact_data is not None:
+            def integrand(tprime):
+                return (-4*pi/3) * self.rate(time_to_temp(tprime, gstar=self.gstar_D + gstar_sm(time_to_temp(tprime)))) \
+                    * np.power(self.scale_factor(tprime) * (self.R_bubble(tprime) + r_fv) / self.scale_factor(self.tperc), 3)
+            res = quad(integrand, self.tc, self.tperc)[0]
+            return np.exp(res)
+
         def integrand(tprime):
             return (-4*pi/3) * self.rate(time_to_temp(tprime, gstar=self.gstar_D + gstar_sm(time_to_temp(tprime)))) \
-                * np.power(self.scale_factor(tprime) * (self.R_bubble(tprime) + r_fv), 3)
-        
+                * np.power(a_ratio_rad(self.tperc, tprime) * (self.R_bubble(tprime) + r_fv), 3)
         res = quad(integrand, self.tc, self.tperc)[0]
         return np.exp(res)
 

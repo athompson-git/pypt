@@ -31,6 +31,7 @@ def hubble2_rad(T, gstar=GSTAR_SM):
     return 8*pi*pi**2 * gstar * T**4 / 90 / M_PL**2
 
 def a_ratio_rad(ti, tj):
+    # returns the ratio a(tj) / a(ti)
     return power(tj/ti, 1/2)
 
 def scale_factor_int2_rad(ti, t):

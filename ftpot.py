@@ -392,7 +392,12 @@ class VEffGeneric(VFT):
         return 0.25*self.lam
     
     def dVdT(self, phi, T):
+        # first derivative of the potential with respect to temperature
         return 2*self.d*T*phi**2 - self.a*phi**3
+    
+    def d2VdT2(self, phi):
+        # second derivative of the potential with respect to temperature
+        return 2*self.d*phi**2
 
     def __call__(self, phi, T):
         return np.real(self.d * (T**2 - self.T0sq)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)

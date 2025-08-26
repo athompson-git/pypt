@@ -389,7 +389,12 @@ class BubbleNucleationQuartic:
         return T_star_2
     
     def dVdT(self, phi, T):
+        # first derivative of the potential with respect to temperature
         return 2*self.d*T*phi**2 - self.a*phi**3
+    
+    def d2VdT2(self, phi):
+        # second derivative of the potential with respect to temperature
+        return 2*self.d*phi**2
     
     def dSbyTdT(self, T):
         beta1 = 8.2938

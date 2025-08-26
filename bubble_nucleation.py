@@ -389,7 +389,7 @@ class BubbleNucleationQuartic:
         return T_star_2
     
     def dVdT(self, phi, T):
-        return 2*self.d*T*phi**2 - self.a*phi**2
+        return 2*self.d*T*phi**2 - self.a*phi**3
     
     def dSbyTdT(self, T):
         beta1 = 8.2938

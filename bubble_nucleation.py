@@ -395,6 +395,17 @@ class BubbleNucleationQuartic:
     def d2VdT2(self, phi):
         # second derivative of the potential with respect to temperature
         return 2*self.d*phi**2
+    
+    def dRhoRdT(self, T):
+        # first derivative of radiation densiy w.r.t. temperature
+        # get the first derivative of g*
+        dgdT = (gstar_sm(T + self.deltaT) - gstar_sm(T))/(self.deltaT)
+
+        return (np.pi**2 / 30) * (dgdT * T**4 + 4 * gstar_sm(T) * T**3)
+
+    def d2RhoRdT2(self, T):
+        # second derivative of the radiation density w.r.t. temperature
+        return (self.dRhoRdT(T + self.deltaT) - self.dRhoRdT(T)) / self.deltaT
 
     def alpha(self):
         # Latent heat

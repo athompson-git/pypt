@@ -405,21 +405,6 @@ class VEffGeneric(VFT):
     
     def dVdT(self, phi, T):
         return 2*self.d*T*phi**2 - self.a*phi**2
-    
-    def dSbyTdT(self, T):
-        # TODO(AT): this has a mistake in it, also self.T0 --> self.T0sq
-        beta1 = 8.2938
-        beta2 = -5.5330
-        beta3 = 0.8180
-        numerator = (256*sqrt(2)*self.d*pi*sqrt((self.d*(T-self.T0)*(T+self.T0)*self.lam)/(self.c+self.a*T)**2)\
-         * ((self.c+self.a*T)**6 * (3*self.c*T+self.a*(T**2+2*self.T0**2))*beta1+self.d*(self.c+self.a*T)**4 \
-           * (T-self.T0)*(T+self.T0)*(-self.a*T**2 * (beta1-2*beta2)+2*self.a*self.T0**2 \
-                                      *(beta1+4*beta2)+self.c*T*(beta1+10*beta2)) \
-            *self.lam-2*self.d**2 * (self.c+self.a*T)**2 * (T-self.T0)**2 * (T+self.T0)**2 \
-                * (T*(self.c+self.a*T)*beta2 - 2*(7*self.c*T+self.a*(T**2+6*self.T0**2))*beta3)*self.lam**2-4*self.d**3 \
-                    * (T**2-self.T0**2)**3 * (3*self.c*T+self.a*T**2 + 2*self.a*self.T0**2)*beta3*self.lam**3))
-        denomenator = 81*power(self.c+self.a*T, 8) * sqrt(self.lam)*(2+(2*self.d * (-T**2 + self.T0**2)*self.lam)/(self.c+self.a*T)**2)**3
-        return numerator/denomenator
 
     def __call__(self, phi, T):
         return np.real(self.d * (T**2 - self.T0sq)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)

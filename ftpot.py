@@ -378,18 +378,6 @@ class VEffGeneric(VFT):
     def get_T0sq_from_vev(self, vev):
         return (self.lam * vev**2 - 3*self.c*vev)/(2*self.d)
     
-    def get_Tc_from_T0(self, T0):
-        # TODO(AT): phase out since Tc is obtained in a more robust way
-        Tc_solution_1 = (-self.a*self.c + sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
-        Tc_solution_2 = (-self.a*self.c - sqrt(self.d*self.lam * (self.c**2 + T0**2 * (self.d*self.lam - self.a**2))))/(self.a**2 - self.d*self.lam)
-        print("Tc1 = {}, Tc2 = {}, Tc=T0={}".format(Tc_solution_1, Tc_solution_2, np.sqrt(self.T0sq)))
-        if not np.isnan(Tc_solution_1) and Tc_solution_1 > 0:
-            return Tc_solution_1
-        elif not np.isnan(Tc_solution_2) and Tc_solution_2 > 0:
-            return Tc_solution_2
-        else:
-            return np.sqrt(self.T0sq)
-    
     def get_Tc(self):
         # from FKS
         return (self.c*self.a + np.sqrt(self.lam*self.d*(self.c**2 + (self.lam*self.d - self.a**2)*self.T0sq)))/(self.lam*self.d - self.a**2)

@@ -199,7 +199,7 @@ class BubbleNucleationQuartic:
     Bubble nucleation class for the generic quartic potential
     uses an analytic approximation of the bounce action
     """
-    def __init__(self, veff: VEffGeneric, Tstar=None, gstar_D=4.5, verbose=False, assume_rad_dom=True, use_fks_action=False):
+    def __init__(self, veff: VEffGeneric, gstar_D=4.5, verbose=False, assume_rad_dom=True, use_fks_action=False):
         self.veff = veff
         self.Tc = veff.Tc
         self.tc = temp_to_time(veff.Tc)
@@ -222,6 +222,10 @@ class BubbleNucleationQuartic:
         self.teq = None
         self.scale_fact_data = None
 
+
+        """
+        begin routines to check cosmic history
+        """
         if not assume_rad_dom:
             # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
             # BUT T_STAR DEPENDS ON HUBBLE
@@ -270,9 +274,15 @@ class BubbleNucleationQuartic:
         except:
             raise Exception("Unable to find bounce action solutions or T*!")
 
+
+
+
+    """
+    begin helper functions
+    """
     def veff_fixed_T(self, phi):
         return self.veff(phi, self.T_test)
-
+    
     # FUNCTIONS FOR THE ACTION AND NUCLEATION RATE
     def bounce_action(self, T):
         # Returns S3/T given the parameters in Veff in thin-wall approx
@@ -348,7 +358,11 @@ class BubbleNucleationQuartic:
 
     def hubble_rate_sq(self, T):
         if self.hubble2_data is None:
-            return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
+            h2_rad = hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
+
+            h2_vac = (1/3/M_PL**2) * (-self.veff(self.vev))
+
+            return h2_rad + h2_vac
         else:
             if (T > self.Tc) or (T < self.Tc / 10):
                 return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
@@ -406,6 +420,13 @@ class BubbleNucleationQuartic:
     def d2RhoRdT2(self, T):
         # second derivative of the radiation density w.r.t. temperature
         return (self.dRhoRdT(T + self.deltaT) - self.dRhoRdT(T)) / self.deltaT
+    
+    def dtdT(self, T):
+        # gets the temperature-time relation
+        # TODO(AT): need to replace vev(T=0) with vev(T)
+
+        return -3*np.sqrt(self.hubble_rate_sq(T)) * (-self.dVdT(self.vev) + self.dRhoRdT(T)/3) \
+            / (-self.d2VdT2(self.vev) + self.d2RhoRdT2(T)/3)
 
     def alpha(self):
         # Latent heat

@@ -32,6 +32,40 @@ def corner_plots_quartic_potential(json_filepath, parameter_to_colorcode="Tc"):
         a_param = p["a"]
         lam_param = p["lambda"]
 
+        Tc = p["Tc"]
+        alpha = p["alpha"]
+        betaByHstar = p["betaByHstar"]
+        vw = p["v_wall"]
+        f_peak = p["f_peak"]
+        mpbh = p["MPBH"]
+        
+        if Tc is None:
+            continue
+        if alpha < 0:
+            continue
+        """
+        if alpha > 1.0:
+            continue
+        """
+        if vw is None:
+            continue
+        if betaByHstar is None or betaByHstar == 0.0:
+            continue
+        if f_peak is None:
+            continue
+        """
+        if betaByHstar > 1e8:
+            continue
+        """
+        if mpbh is None:
+            continue
+        """
+        if fpbh <= 0.0:
+            continue
+        if fpbh >= 1.0:
+            continue
+        """
+
         color_param = p[parameter_to_colorcode]
 
         a_list.append(a_param)

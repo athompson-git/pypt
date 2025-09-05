@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from .constants import *
 
-
+from matplotlib.colors import LogNorm
 
 
 """
@@ -178,7 +178,8 @@ If passing MPBH, automatically rescales to grams.
 """
 def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
             xlabel=r"$M_{PBH}$ [g]", ylabel=r"$f_{PBH}$",
-            ylim=None, xlim=None, color_param="v_wall", color_log=False):
+            ylim=None, xlim=None, color_param="v_wall", color_label="$v_w$",
+            color_log=False):
 
     with open(json_filepath, "r") as file:
         param_json = json.load(file)
@@ -202,6 +203,8 @@ def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
             continue
         if var2 <= 0.0:
             continue
+        if colvar is None or colvar <= 0.0:
+            continue
         
         if varstr1 == "MPBH":
             var1 *= 1/GEV_PER_G
@@ -224,11 +227,15 @@ def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
     color_ids = get_color(param_choice)
     colors = plt.cm.viridis(color_ids)
 
-    plt.scatter(var1_list, var2_list, c=colors)
+    if color_log:
+        plt.scatter(var1_list, var2_list, c=colors, norm=LogNorm())
+    else:
+        plt.scatter(var1_list, var2_list, c=colors, norm=LogNorm())
 
     sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis)
     sm.set_clim(vmin=param_min, vmax=param_max)
     cbar = plt.colorbar(sm)
+    cbar.set_label(color_label)
 
     plt.xscale('log')
     plt.yscale('log')

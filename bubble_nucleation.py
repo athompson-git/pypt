@@ -222,41 +222,8 @@ class BubbleNucleationQuartic:
         self.teq = None
         self.scale_fact_data = None
 
-
-        """
-        begin routines to check cosmic history
-        """
-        if not assume_rad_dom:
-            # TODO(AT): CHECK ASSUMPTION V_WALL = 1; CIRCULAR LOGIC SINCE V_WALL DEPENDS ON ALPHA AND TSTAR,
-            # BUT T_STAR DEPENDS ON HUBBLE
-            ch = CosmicHistoryVacuumRadiation(veff=veff, vw=1.0)
-            self.teq = ch.teq
-
-            if verbose:
-                print("Attempting to solve ivp...")
-            result = ch.solve_system(max_time=10.0)
-
-            if verbose:
-                print("Solved ivp successfully!")
-
-            rhoV = ch.rhoV(result.t, result.y)
-            
-            # TODO(AT): fix time_to_temp to not assume rad. dom.
-            # Create dataset of [T, Hubble^2] and [t, a(t)]
-            self.scale_fact_data = np.array([sqrt(2) * result.t / sqrt(ch.Heq2),
-                                            result.y[0]]).transpose()
-            self.hubble2_data = np.array([time_to_temp(sqrt(2) * result.t / sqrt(ch.Heq2)),
-                                            0.5*ch.Heq2*(rhoV + result.y[1])]).transpose()
-            idx_perc = np.argmin(rhoV/rhoV[0] - 0.7)
-            self.Tperc = self.hubble2_data[idx_perc,0]
-            self.Tstar = self.Tperc
-            self.tperc = temp_to_time(self.Tperc)
-
-            self.cosmic_hist_result = result
-            self.rhoV_history = rhoV
-
         if self.Tperc is None:
-            self.Tstar = self.get_Tstar_from_rate()
+            self.Tstar = self.get_Tstar()
             self.Tperc = self.Tstar
             self.tperc = temp_to_time(self.Tperc)
 
@@ -274,16 +241,10 @@ class BubbleNucleationQuartic:
         except:
             raise Exception("Unable to find bounce action solutions or T*!")
 
-
-
-
-    """
-    begin helper functions
-    """
+    # FUNCTIONS FOR THE ACTION AND NUCLEATION RATE
     def veff_fixed_T(self, phi):
         return self.veff(phi, self.T_test)
     
-    # FUNCTIONS FOR THE ACTION AND NUCLEATION RATE
     def bounce_action(self, T):
         # Returns S3/T given the parameters in Veff in thin-wall approx
         # see 2304.10084
@@ -360,7 +321,7 @@ class BubbleNucleationQuartic:
         if self.hubble2_data is None:
             h2_rad = hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
 
-            h2_vac = (1/3/M_PL**2) * (-self.veff(self.vev))
+            h2_vac = (1/3/M_PL**2) * (-self.veff(self.vev, T))
 
             return h2_rad + h2_vac
         else:
@@ -374,33 +335,16 @@ class BubbleNucleationQuartic:
         if self.verbose:
             print("SE/T = {} at T=Tc".format(self.bounce_action(self.Tc)))
         
-        T_grid = np.linspace(np.sqrt(abs(self.T0sq)), 1.0*self.Tc, 10000000)
-        s3ByTs = self.bounce_action(T_grid)
-
-        mask = (s3ByTs>80.0)*(s3ByTs < 200.0)
-
-        s3ByT_within_140 = s3ByTs[mask]
-        T_grid_within_140 = T_grid[mask]
-        if len(s3ByT_within_140) == 0:
-            return None
-        
-        s3ByT_within_140 = np.asarray(s3ByT_within_140)
-        closest_idx = (np.abs(s3ByT_within_140 - 140.0)).argmin()
-        if abs(s3ByT_within_140[closest_idx] - 140.0) > 10.0:
-            return None
-        return T_grid_within_140[closest_idx]
-    
-    def get_Tstar_from_rate(self):
-        # check SE/T close to T=Tc
-        T_grid = np.linspace(self.Tc/10, self.Tc, 10000)
+        # Bounded between T0 and Tc
+        T_grid = np.linspace(np.sqrt(abs(self.T0sq)), self.Tc, 100000)
         GammaByHstar = np.nan_to_num([self.rate(T)/power(self.hubble_rate_sq(T),2) for T in T_grid])
         star_id = np.argmin(abs(GammaByHstar - 1.0))
-        T_star_2 = T_grid[star_id]
+        T_star_candidate = T_grid[star_id]
 
         # save critical rate error
         self.rate_star = GammaByHstar[star_id]
 
-        return T_star_2
+        return T_star_candidate
     
     def dVdT(self, phi, T):
         # first derivative of the potential with respect to temperature

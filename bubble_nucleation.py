@@ -199,7 +199,8 @@ class BubbleNucleationQuartic:
     Bubble nucleation class for the generic quartic potential
     uses an analytic approximation of the bounce action
     """
-    def __init__(self, veff: VEffGeneric, gstar_D=4.5, verbose=False, assume_rad_dom=True, use_fks_action=False):
+    def __init__(self, veff: VEffGeneric, gstar_D=4.5, verbose=False,
+                 assume_rad_dom=True, use_fks_action=False) -> None:
         self.veff = veff
         self.Tc = veff.Tc
         self.tc = temp_to_time(veff.Tc)
@@ -242,10 +243,10 @@ class BubbleNucleationQuartic:
             raise Exception("Unable to find bounce action solutions or T*!")
 
     # FUNCTIONS FOR THE ACTION AND NUCLEATION RATE
-    def veff_fixed_T(self, phi):
+    def veff_fixed_T(self, phi) -> float:
         return self.veff(phi, self.T_test)
     
-    def bounce_action(self, T):
+    def bounce_action(self, T) -> float:
         # Returns S3/T given the parameters in Veff in thin-wall approx
         # see 2304.10084
         delta = 8*self.veff.a4(T) * self.veff.a2(T) / self.veff.a3(T)**2
@@ -257,37 +258,47 @@ class BubbleNucleationQuartic:
             * (beta1*delta + beta2*delta**2 + beta3*delta**3) \
                 / power(self.veff.a4(T), 1.5) / 81 / T), a_min=0.0, a_max=np.inf)
     
-    def kappa_func(self, T):
-        return self.veff.lam * 2 * self.veff.d * (T**2 - self.veff.T0sq) / power(3 * (self.veff.a*T + self.veff.c), 2)
+    def kappa_func(self, T) -> float:
+        return self.veff.lam * 2 * self.veff.d * (T**2 - self.veff.T0sq) \
+            / power(3 * (self.veff.a*T + self.veff.c), 2)
 
-    def b3bar(self, kappa):
-        return (16/243) * (1 - 38.23*(kappa - 2/9) + 115.26*(kappa - 2/9)**2 + 58.07*sqrt(kappa)*(kappa - 2/9)**2 + 229.07*kappa*(kappa - 2/9)**2)
+    def b3bar(self, kappa) -> float:
+        return (16/243) * (1 - 38.23*(kappa - 2/9) + 115.26*(kappa - 2/9)**2 \
+                           + 58.07*sqrt(kappa)*(kappa - 2/9)**2 \
+                           + 229.07*kappa*(kappa - 2/9)**2)
 
-    def bounce_action_fks(self, T):
-        prefactor = power(2 * self.veff.d * (T**2 - self.veff.T0sq), 3/2) / power(3 * (self.veff.a*T + self.veff.c), 2)
+    def bounce_action_fks(self, T) -> float:
+        prefactor = power(2 * self.veff.d * (T**2 - self.veff.T0sq), 3/2) \
+            / power(3 * (self.veff.a*T + self.veff.c), 2)
 
         kappa = self.kappa_func(T)
         kappa_gtr_zero = kappa > 0
 
         kappa_c = 0.52696
 
-        return kappa_gtr_zero * (prefactor*(2*pi/(3*(kappa - kappa_c)**2)) * self.b3bar(kappa) / T) \
-                + (1 - kappa_gtr_zero) * (prefactor*(27*pi/2) * (1 + np.exp(-power(abs(kappa), -0.5))) / (1 + abs(kappa)/kappa_c) / T)
+        return (prefactor*(2*pi/(3*(kappa - kappa_c)**2)) \
+                * self.b3bar(kappa) / T) * kappa_gtr_zero \
+                + (1 - kappa_gtr_zero) * (prefactor*(27*pi/2) \
+                                        * (1 + np.exp(-power(abs(kappa), -0.5))) \
+                                        / (1 + abs(kappa)/kappa_c) / T)
     
-    def rate(self, T):
+    def rate(self, T) -> float:
         if self.use_fks_action:
-            return np.real(T**4 * power(abs(self.bounce_action_fks(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action_fks(T))))
-        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) * np.exp(-abs(self.bounce_action(T))))
+            return np.real(T**4 * power(abs(self.bounce_action_fks(T)) \
+                                         / (2*pi), 3/2) \
+                                * np.exp(-abs(self.bounce_action_fks(T))))
+        return np.real(T**4 * power(abs(self.bounce_action(T)) / (2*pi), 3/2) \
+                       * np.exp(-abs(self.bounce_action(T))))
 
     # FUNCTIONS FOR THE FALSE VACUUM FRACTION AND EVOLUTION
-    def scale_factor(self, t):
+    def scale_factor(self, t) -> float:
         # Normalized to a(teq) = 1
         t_mask = t - self.teq
         # Return radiation domination scaling before teq
         return np.heaviside(-t_mask, 1.0)*power(t/self.teq, 0.5) \
             + np.heaviside(t_mask, 0.0)*np.interp(t, self.scale_fact_data[:,0], self.scale_fact_data[:,1])
 
-    def R_bubble(self, tprime):
+    def R_bubble(self, tprime) -> float:
         # Returns the Radius of the vacuum bubble at time tprime
         # Integrates from self.T_perc
         delta_t = (self.tperc - tprime) / 100
@@ -300,7 +311,7 @@ class BubbleNucleationQuartic:
         return np.sum([delta_t * (self.vw()*a_ratio_rad(t, self.tperc)) \
                     for t in t_vals])
 
-    def p_surv_false_vacuum(self, r_fv):
+    def p_surv_false_vacuum(self, r_fv) -> float:
         # Uses FKS calculation for survival probability of patches with radius r_fv
         # assume vwall = 1 for the below vacuum fraction
         # Integrand: rate * scale factor^3 * volume factor
@@ -317,7 +328,7 @@ class BubbleNucleationQuartic:
         res = quad(integrand, self.tc, self.tperc)[0]
         return np.exp(res)
 
-    def hubble_rate_sq(self, T):
+    def hubble_rate_sq(self, T) -> float:
         if self.hubble2_data is None:
             h2_rad = hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
 
@@ -330,7 +341,7 @@ class BubbleNucleationQuartic:
             else:
                 return np.interp(T, self.hubble2_data[::-1,0], self.hubble2_data[::-1,1])
 
-    def get_Tstar(self):
+    def get_Tstar(self) -> float:
         # check SE/T close to T=Tc
         if self.verbose:
             print("SE/T = {} at T=Tc".format(self.bounce_action(self.Tc)))
@@ -346,15 +357,15 @@ class BubbleNucleationQuartic:
 
         return T_star_candidate
     
-    def dVdT(self, phi, T):
+    def dVdT(self, phi, T) -> float:
         # first derivative of the potential with respect to temperature
         return 2*self.d*T*phi**2 - self.a*phi**3
     
-    def d2VdT2(self, phi):
+    def d2VdT2(self, phi) -> float:
         # second derivative of the potential with respect to temperature
         return 2*self.d*phi**2
     
-    def dRhoRdT(self, T):
+    def dRhoRdT(self, T) -> float:
         # first derivative of radiation densiy w.r.t. temperature
         # get the first derivative of g*
         dgdT = (gstar_sm(T + self.deltaT) - gstar_sm(T))/(self.deltaT)
@@ -365,14 +376,14 @@ class BubbleNucleationQuartic:
         # second derivative of the radiation density w.r.t. temperature
         return (self.dRhoRdT(T + self.deltaT) - self.dRhoRdT(T)) / self.deltaT
     
-    def dtdT(self, T):
+    def dtdT(self, T) -> float:
         # gets the temperature-time relation
         # TODO(AT): need to replace vev(T=0) with vev(T)
 
         return -3*np.sqrt(self.hubble_rate_sq(T)) * (-self.dVdT(self.vev) + self.dRhoRdT(T)/3) \
             / (-self.d2VdT2(self.vev) + self.d2RhoRdT2(T)/3)
 
-    def alpha(self):
+    def alpha(self) -> float:
         # Latent heat
         prefactor = 30 / pi**2 / (GSTAR_SM) / self.Tperc**4
 
@@ -381,13 +392,13 @@ class BubbleNucleationQuartic:
 
         return prefactor * (deltaV + self.Tperc * dVdT / 4)
 
-    def betaByHstar(self, numeric=True):
+    def betaByHstar(self) -> float:
         # Get the derivative of S3/T
         dSdT = abs(self.SE_T_plus_dT - self.SE_T) / self.deltaT
         
         return self.Tperc * dSdT
 
-    def vw(self):
+    def vw(self) -> float:
         alpha = self.alpha()
         deltaV = -self.veff(self.phi_plus, self.Tperc)
 

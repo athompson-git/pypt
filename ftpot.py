@@ -299,7 +299,8 @@ class VEffRealScalarYukawa(VFT):
 
 
 class VEffGeneric(VFT):
-    def __init__(self, a=0.1, lam=0.061, c=0.249, d=0.596, vev=None, b=75.0**4, verbose=False):
+    def __init__(self, a=0.1, lam=0.061, c=0.249, d=0.596,
+                 vev=None, b=75.0**4, verbose=False) -> None:
         self.verbose = verbose
         self.a = a
         self.b = b
@@ -325,7 +326,8 @@ class VEffGeneric(VFT):
 
         super().__init__(renorm_mass=self.vev, verbose=verbose, is_real=False, Tc=Tc)
     
-    def set_params(self, a=0.1, lam=0.061, c=0.249, d=0.596, vev=None, b=75.0**4):
+    def set_params(self, a=0.1, lam=0.061, c=0.249, d=0.596,
+                   vev=None, b=75.0**4) -> None:
         self.a = a
         self.b = b
         self.lam = lam
@@ -350,24 +352,33 @@ class VEffGeneric(VFT):
         self.renorm_mass_scale = vev
         self.Tc = Tc
     
-    def get_vev(self, T):
+    def get_vev(self, T) -> float:
         phi1 = (3*(self.c + self.a*T) - sqrt(9*(self.c + self.a*T)**2 - 8*self.d*self.lam*(T**2 - self.T0sq)))/(2*self.lam)
         phi2 = (3*(self.c + self.a*T) + sqrt(9*(self.c + self.a*T)**2 - 8*self.d*self.lam*(T**2 - self.T0sq)))/(2*self.lam)
-        vev_list = [0.0, phi1, phi2]
 
-        return max(np.real(vev_list))
+        # both vev and its 2nd derivative must be positive
+        vev_candidates = [0.0]
+        if self.d2Vdphi(phi2, T) > 0. and phi2 > 0.:
+            vev_candidates.append(phi2)
+        elif self.d2Vdphi(phi1, T) > 0. and phi1 > 0.:
+            vev_candidates.append(phi1)
+        
+        pots = [self.__call__(x, T) for x in vev_candidates]
+        vev_id = np.argmin(pots)
 
-    def phi_plus_from_T0(self, T0sq):
+        return vev_candidates[vev_id]
+
+    def phi_plus_from_T0(self, T0sq) -> float:
         return (3*self.c + sqrt(9*self.c**2 + 8*self.lam*self.d*T0sq))/(2*self.lam)
     
-    def phi_critical(self):
+    def phi_critical(self) -> float:
         return self.Tc * (2*(self.a + self.c/self.Tc)/self.lam)
     
-    def wall_tension(self):
+    def wall_tension(self) -> float:
         # from thin wall approx
         return power(self.phi_critical(), 3) * power(self.lam/2, 0.5) / 6
 
-    def get_T0sq_from_B(self):
+    def get_T0sq_from_B(self) -> float:
         def root_func(T0sq):
             return self.b + (-self.d*T0sq * self.phi_plus_from_T0(T0sq)**2 - self.c*self.phi_plus_from_T0(T0sq)**3 \
                              + self.lam*self.phi_plus_from_T0(T0sq)**4 / 4)
@@ -375,29 +386,32 @@ class VEffGeneric(VFT):
         res = fsolve(root_func, [1.0])
         return res[0]
     
-    def get_T0sq_from_vev(self, vev):
+    def get_T0sq_from_vev(self, vev) -> float:
         return (self.lam * vev**2 - 3*self.c*vev)/(2*self.d)
     
-    def get_Tc(self):
+    def get_Tc(self) -> float:
         # from FKS
         return (self.c*self.a + np.sqrt(self.lam*self.d*(self.c**2 + (self.lam*self.d - self.a**2)*self.T0sq)))/(self.lam*self.d - self.a**2)
 
-    def a2(self, T):
+    def a2(self, T) -> float:
         return self.d * (T**2 - self.T0sq)
     
-    def a3(self, T):
+    def a3(self, T) -> float:
         return -(self.a*T + self.c)
 
-    def a4(self, T):
+    def a4(self, T) -> float:
         return 0.25*self.lam
     
-    def dVdT(self, phi, T):
+    def dVdT(self, phi, T) -> float:
         # first derivative of the potential with respect to temperature
         return 2*self.d*T*phi**2 - self.a*phi**3
     
-    def d2VdT2(self, phi):
+    def d2VdT2(self, phi) -> float:
         # second derivative of the potential with respect to temperature
         return 2*self.d*phi**2
+    
+    def d2Vdphi(self, phi, T) -> float:
+        return 2*self.d*(T**2-self.T0sq) - 6*(self.c + self.a*T)*phi + 3. * phi**2 / self.lam
 
-    def __call__(self, phi, T):
+    def __call__(self, phi, T) -> float:
         return np.real(self.d * (T**2 - self.T0sq)*phi**2 - (self.a*T + self.c)*phi**3 + 0.25*self.lam*phi**4)

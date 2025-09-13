@@ -1,10 +1,11 @@
 # Class for storing a finite temp effective potential
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
 
 from .constants import *
 from .cosmology_functions import *
 
 import pkg_resources
-from scipy.special import zeta, gamma, factorial
 
 PT_CONST_AB = 16 * pi**2 * exp(1.5 - 2*GAMMA_EULER)
 PT_CONST_AF = pi**2 * exp(1.5 - 2*GAMMA_EULER)

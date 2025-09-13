@@ -1,3 +1,7 @@
+# plotting macros for visualizing parameter scans
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
+
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,6 +9,7 @@ from .constants import *
 
 from matplotlib.colors import LogNorm
 
+from .gw import *
 
 """
 Make a 6-plot 'cornerplot' over the parameters for a quartic potential as scatterplots
@@ -188,6 +193,8 @@ def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
     var2_list = []
     colvar_list = []
 
+    gw = GravitationalWave()
+
     for i in range(len(param_json)):
         p = param_json[i]
 
@@ -210,6 +217,13 @@ def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
             var1 *= 1/GEV_PER_G
         if varstr2 == "MPBH":
             var2 *= 1/GEV_PER_G
+        
+        if (varstr2 == "f_peak") or (varstr1 == "f_peak"):
+            gw.alpha = p["alpha"]
+            gw.betaByHstar = p["betaByHstar"]
+            gw.vw = p["v_wall"]
+            gw.Tstar = p["Tstar"]
+            var2 = gw.f_peak_col()
 
         var1_list.append(var1)
         var2_list.append(var2)

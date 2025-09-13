@@ -1,4 +1,6 @@
 # Classes and functions for calculating GW spectra from FOPT, PBH, etc.
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
 
 from pypt.ftpot import VFT
 from .constants import *

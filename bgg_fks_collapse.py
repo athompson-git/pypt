@@ -1,3 +1,7 @@
+# Classes and functions for solving the collapse of false vacuum patches into PBHs
+#  
+# Copyright (c) 2025 Adrian Thompson via MIT License
+
 """
 The methods in this code are meant to reflect the solution to the equation of motion derived in
 Blau, Guendelman, Guth (BGG) and Flores, Kusenko Sasaki (FKS) from the Israel junction conditions.

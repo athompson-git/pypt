@@ -1,4 +1,7 @@
 # Table of physical constants
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
+
 from numpy import pi, exp
 
 # Default values are in s, cm, MeV

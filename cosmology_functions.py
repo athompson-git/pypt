@@ -1,4 +1,6 @@
 # Math imports
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
 
 from .constants import *
 

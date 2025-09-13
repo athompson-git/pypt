@@ -1,3 +1,7 @@
+# Classes and functions for solving the coupled vacuum-radiation cosmic history
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
+
 from .ftpot import *
 from .cosmology_functions import *
 

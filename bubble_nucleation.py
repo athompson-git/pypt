@@ -1,4 +1,6 @@
 # Solves for bubble nucleation dynamic params based on bounce action and effective potential
+# 
+# Copyright (c) 2025 Adrian Thompson via MIT License
 
 import warnings
 

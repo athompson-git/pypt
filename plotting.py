@@ -184,7 +184,7 @@ If passing MPBH, automatically rescales to grams.
 def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
             xlabel=r"$M_{PBH}$ [g]", ylabel=r"$f_{PBH}$",
             ylim=None, xlim=None, color_param="v_wall", color_label="$v_w$",
-            color_log=False):
+            color_log=False, cuts=None):
 
     with open(json_filepath, "r") as file:
         param_json = json.load(file)
@@ -202,6 +202,17 @@ def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
         var2 = p[varstr2]
         colvar = p[color_param]
 
+        if cuts is not None:
+            skip = False
+            for cut in cuts:
+                cutvar = p[cut[0]]
+                if cutvar < cut[1]:
+                    skip = True
+                if cutvar > cut[2]:
+                    skip = True
+            if skip:
+                continue
+
         if var1 is None:
             continue
         if var2 is None:
@@ -218,12 +229,33 @@ def plot_2d(json_filepath, varstr1="MPBH", varstr2 = "fBPH",
         if varstr2 == "MPBH":
             var2 *= 1/GEV_PER_G
         
-        if (varstr2 == "f_peak") or (varstr1 == "f_peak"):
+        if (varstr2 == "f_peak"):
             gw.alpha = p["alpha"]
             gw.betaByHstar = p["betaByHstar"]
             gw.vw = p["v_wall"]
             gw.Tstar = p["Tstar"]
-            var2 = gw.f_peak_col()
+            var2 = gw.f_peak_sw()
+        
+        if (varstr1 == "f_peak"):
+            gw.alpha = p["alpha"]
+            gw.betaByHstar = p["betaByHstar"]
+            gw.vw = p["v_wall"]
+            gw.Tstar = p["Tstar"]
+            var1 = gw.f_peak_sw()
+        
+        if (varstr1 == "h2Omega"):
+            gw.alpha = p["alpha"]
+            gw.betaByHstar = p["betaByHstar"]
+            gw.vw = p["v_wall"]
+            gw.Tstar = p["Tstar"]
+            var1 = gw.omega_sw(p["f_peak"])
+        
+        if (varstr2 == "h2Omega"):
+            gw.alpha = p["alpha"]
+            gw.betaByHstar = p["betaByHstar"]
+            gw.vw = p["v_wall"]
+            gw.Tstar = p["Tstar"]
+            var2 = gw.omega_sw(p["f_peak"])
 
         var1_list.append(var1)
         var2_list.append(var2)

@@ -69,7 +69,7 @@ OMEGA_DM = OMEGA_MATTER - OMEGA_BARYON
 
 
 # conversion between units
-GEV_PER_G = 5.6095887e23  # MeV/g
+GEV_PER_G = 5.6095887e23  # GeV/g
 MEV_PER_KG = 5.6095887e29  # MeV/kg
 MEV_PER_G = 5.6095887e26  # MeV/g
 MEV_PER_HZ = 6.58e-22  # 1 s^-1 = 6.58e-22 MeV

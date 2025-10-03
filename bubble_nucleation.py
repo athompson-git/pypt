@@ -390,7 +390,7 @@ class BubbleNucleationQuartic:
         prefactor = 30 / pi**2 / (GSTAR_SM) / self.Tperc**4
 
         deltaV = -self.veff(self.phi_plus, self.Tperc)
-        dVdT = (self.veff(self.phi_plus_dT, self.Tperc+self.deltaT) - self.veff(self.phi_plus, self.Tperc))/(self.deltaT)
+        dVdT = self.dVdT(self.phi_plus, self.Tperc)
 
         return prefactor * (deltaV + self.Tperc * dVdT / 4)
 

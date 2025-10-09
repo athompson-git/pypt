@@ -49,8 +49,16 @@ class GravitationalWave:
     
     def f_peak_turb(self):
         return 1.64*self.betaByHstar*self.hstar_param()/self.vw
+    
+    def shock_formation_scale(self):
+        # from 2003.07360
+        # approximate RMS perfect fluid velocity 
+        Uf = sqrt(0.75 * self.kappa() * self.alpha / (1 + self.alpha))
+        cs = 1/sqrt(3)
 
-    def sw(self, f):
+        return power(8*np.pi, 1/3) * max(self.vw, cs) / Uf / self.betaByHstar
+
+    def sw_sw(self, f):
         # spectral function for the sound wave piece
         return power(f/self.f_peak_sw(), 3) * power(7/(4 + 3*power(f/self.f_peak_sw(), 2)), 7/2)
     
@@ -70,7 +78,7 @@ class GravitationalWave:
         # return the gravitational wave energy budget from sound waves
         kappa = self.kappa()
         alpha = self.alpha
-        return 8.5e-6 * self.sw(f) * power(100/gstar_sm(self.Tstar), 1/3) * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
+        return 8.5e-6 * self.sw_sw(f) * power(100/gstar_sm(self.Tstar), 1/3) * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
 
     def omega_turb(self, f):
         # return the gravitational wave energy budget from turbulence

@@ -27,7 +27,7 @@ G_NEWTON_FKS = np.power(8*pi, 0.5) / M_PL**2  # Newton's constant
 
 
 class FKSCollapse:
-    def __init__(self, deltaV, sigma, vw=1.0):
+    def __init__(self, deltaV, sigma, vw=1.0) -> None:
         """
         Class that takes in the potntial parameters and the initial radial size of a
         false vacuum patch and calculates the trajectory and collapse condition
@@ -46,58 +46,58 @@ class FKSCollapse:
         self.gamma = self.get_gamma()
 
     # Helper functions to define constants; these execute first in init
-    def get_HV2(self):
+    def get_HV2(self) -> float:
         return self.rhoV / (3 * M_PL_FKS**2)
 
-    def get_Hsigma2(self):
+    def get_Hsigma2(self) -> float:
         return (self.sigma / (2 * M_PL_FKS**2))**2
 
-    def get_eta(self):
+    def get_eta(self) -> float:
         return np.sqrt(self.get_Hsigma2() / self.get_HV2())
     
-    def get_gamma(self):
+    def get_gamma(self) -> float:
         return (2 * self.get_eta()) / np.sqrt(1 + self.get_eta()**2)
     
     # Collapse potential functions
-    def Uz(self, z):
+    def Uz(self, z: float) -> float:
         return -((1 - z**3) / z**2)**2 - (self.gamma**2 / z)
 
-    def E0(self, M):
+    def E0(self, M: float) -> float:
         return (-4 * self.eta**2) / ((2 * G_NEWTON_FKS * M)**(2/3) * self.HV2**(1/3) * (1 + self.eta**2)**(4/3))
 
-    def zs(self, E0):
+    def zs(self, E0: float) -> float:
         return self.gamma**2 / abs(E0)
 
-    def z(self, r, M):
+    def z(self, r: float, M: float) -> float:
         return ((self.HV2 + self.Hsigma2) / (2 * G_NEWTON_FKS * M))**(1/3) * r
 
-    def rFromZ(self, z, M):
+    def rFromZ(self, z: float, M: float) -> float:
         return z/((self.HV2 + self.Hsigma2) / (2 * G_NEWTON_FKS * M))**(1/3)
 
-    def dz(self, dr, M):
+    def dz(self, dr: float, M: float) -> float:
         return ((self.HV2 + self.Hsigma2) / (2 * G_NEWTON_FKS * M))**(1/3) * dr
 
-    def M0(self, r):
+    def M0(self, r: float) -> float:
         # Todo: divide vwall by scale factor
         return (4 * pi / 3) * self.rhoV * r**3 - 8 * pi**2 * G_NEWTON_FKS * self.sigma**2 * r**3 \
             + 4 * pi * self.sigma * r**2 \
                 * np.sqrt( np.clip(1 - ((8 * pi * G_NEWTON_FKS / 3) * self.rhoV * r**2 + self.vw**2),
                                    a_min=0.0, a_max=2.0) )
 
-    def H2(self, T, gstar):
+    def H2(self, T: float, gstar: float) -> float:
         return (8 * pi**3 * gstar * T**4) / (90 * M_PL_FKS**2)
 
     # Gradients
-    def dU_dz(self, z):
+    def dU_dz(self, z: float) -> float:
         # Calculate dU/dz as derived
         return 6 * (1 - z**3) / z**2 + 4*(1-z**3)**2 / z**5 \
                 + 4 * self.eta**2 / (z**2 * (1 + self.eta**2)) 
 
-    def dz_dr(self, rhoV, sigma, M):
+    def dz_dr(self, rhoV: float, sigma: float, M: float) -> float:
         # Calculate dz/dr
         return ((self.HV2(rhoV) + self.Hsigma2(sigma)) / (2 * G_NEWTON_FKS * M))**(1/3)
 
-    def dU_dr(self, r, M):        
+    def dU_dr(self, r: float, M: float) -> float:        
         # Calculate z as a function of r
         z_val = self.z(r, M)
         
@@ -110,14 +110,14 @@ class FKSCollapse:
         # Chain rule: dU/dr = dU/dz * dz/dr
         return dUdz_val * dzdr_val
 
-    def tau(self, tau_prime, rhoV, sigma):
+    def tau(self, tau_prime: float, rhoV: float, sigma: float) -> float:
         #Convert from tau_prime to tau
         numerator = 2 * np.sqrt(self.Hsigma2(sigma)) * tau_prime
         denominator = self.HV2(rhoV) + self.Hsigma2(sigma)
         return numerator / denominator
     
     # COLLAPSE CONDITION
-    def does_pbh_form(self, r_fv):
+    def does_pbh_form(self, r_fv: float) -> bool:
         """
         Check the mass and formation time of the PBH in coordinate z
         Compare that with U(z): does the false vacuum patch form smaller than z_TP?
@@ -150,14 +150,14 @@ class FKSCollapse:
         
         return False
     
-    def get_crit_mass(self):
+    def get_crit_mass(self) -> float:
         mbar = 4*pi*M_PL_FKS**2 / sqrt(self.HV2)
         z_m = np.power(0.5*sqrt(8 + (1 - 0.5*self.gamma**2)**2) - 0.5*(1 - 0.5*self.gamma**2), 1/3)
 
         return mbar * power(self.gamma * z_m**2, 2) * sqrt(1 - self.gamma**2 / 4) \
             / (3*sqrt(3) * power(power(z_m, 6) - 1, 3/2))
     
-    def get_M_at_zTP(self):
+    def get_M_at_zTP(self) -> float:
         """
         Find the mass in GeV that would intersect with z_TP
         """
@@ -168,7 +168,7 @@ class FKSCollapse:
 
         return power(m_tp_prefact / self.Uz(z0), 3/2)
 
-    def get_collapse_time(self, r_fv):
+    def get_collapse_time(self, r_fv: float) -> float:
         does_collapse = self.does_pbh_form(r_fv)
         if not does_collapse:
             return np.inf
@@ -189,14 +189,18 @@ class FKSCollapse:
         return tau * (2 * sqrt(self.Hsigma2)) / (self.HV2 + self.Hsigma2)  # convert back to GeV^-1
     
     # Simulation functions
-    def simulate_z(self, r0, dr0, time_span=(0, 1e10)):
+    def simulate_z(self,
+                   r0: float,
+                   dr0: float,
+                   time_span=(0, 1e10)) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         m_pbh = self.M0(r0)
-        E0 = self.E0(m_pbh)
+        E0 = self.E0(m_pbh) 
 
         def dz_dt(t, y):
             z, dzdt = y
             
-            #dzdt = np.array(np.sqrt(Energy - Uz(z, eta_BP1)))  # Acceleration term from potential
+            #dzdt = np.array(np.sqrt(Energy - Uz(z, eta_BP1))) 
+            # Acceleration term from potential
             d2zdt2 = np.array(-0.5*self.dU_dz(z) / np.sqrt(E0 - self.Uz(z)))
             return [dzdt, d2zdt2]
     

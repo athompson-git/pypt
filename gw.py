@@ -78,12 +78,14 @@ class GravitationalWave:
         # return the gravitational wave energy budget from sound waves
         kappa = self.kappa()
         alpha = self.alpha
-        return 8.5e-6 * self.sw_sw(f) * power(100/gstar_sm(self.Tstar), 1/3) * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
+        return 8.5e-6 * self.shock_formation_scale() * self.sw_sw(f) * power(100/gstar_sm(self.Tstar), 1/3) \
+            * power(kappa*alpha / (1+alpha), 2) * self.vw / self.betaByHstar
 
     def omega_turb(self, f):
         # return the gravitational wave energy budget from turbulence
         kappa = 0.05*self.kappa()
-        return 3.35e-4 * self.vw * (1/self.betaByHstar) * power(100/(self.gstar_D + gstar_sm(self.Tstar)), 1/3) \
+        return 3.35e-4 * (1 - self.shock_formation_scale()) * self.vw * (1/self.betaByHstar) \
+            * power(100/(self.gstar_D + gstar_sm(self.Tstar)), 1/3) \
             * power(kappa*self.alpha / (1+self.alpha), 3/2) * self.sw_col(f)
 
     def omega_col(self, f):

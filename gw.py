@@ -56,7 +56,7 @@ class GravitationalWave:
         Uf = sqrt(0.75 * self.kappa() * self.alpha / (1 + self.alpha))
         cs = 1/sqrt(3)
 
-        return power(8*np.pi, 1/3) * max(self.vw, cs) / Uf / self.betaByHstar
+        return min(power(8*np.pi, 1/3) * max(self.vw, cs) / Uf / self.betaByHstar, 1.0)
 
     def sw_sw(self, f):
         # spectral function for the sound wave piece

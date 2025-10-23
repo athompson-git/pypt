@@ -116,6 +116,17 @@ class FKSCollapse:
         denominator = self.HV2(rhoV) + self.Hsigma2(sigma)
         return numerator / denominator
     
+    def get_zTP(self, m_pbh: float) -> float:
+        # Get Schwarzchild radius
+        E_pbh = self.E0(m_pbh)
+
+        # Determine z_m (location of potential maximum)
+        z_m = np.power(0.5*sqrt(8 + (1 - 0.5*self.gamma**2)**2) - 0.5*(1 - 0.5*self.gamma**2), 1/3)
+        test_z = np.linspace(0.0, z_m, 10000)
+        z_TP = test_z[np.argmin(abs(self.Uz(test_z) - E_pbh))]
+
+        return z_TP
+    
     # COLLAPSE CONDITION
     def does_pbh_form(self, r_fv: float) -> bool:
         """

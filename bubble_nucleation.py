@@ -218,12 +218,10 @@ class BubbleNucleationQuartic:
 
         self.assume_rad_dom = assume_rad_dom
         self.use_fks_action = use_fks_action
-        self.hubble2_data = None
         self.Tperc = None
         self.tperc = None
 
         self.teq = None
-        self.scale_fact_data = None
 
         if self.Tperc is None:
             self.Tstar = self.get_Tstar()
@@ -293,22 +291,11 @@ class BubbleNucleationQuartic:
                        * np.exp(-abs(self.bounce_action(T))))
 
     # FUNCTIONS FOR THE FALSE VACUUM FRACTION AND EVOLUTION
-    def scale_factor(self, t) -> float:
-        # Normalized to a(teq) = 1
-        t_mask = t - self.teq
-        # Return radiation domination scaling before teq
-        return np.heaviside(-t_mask, 1.0)*power(t/self.teq, 0.5) \
-            + np.heaviside(t_mask, 0.0)*np.interp(t, self.scale_fact_data[:,0], self.scale_fact_data[:,1])
-
     def R_bubble(self, tprime) -> float:
         # Returns the Radius of the vacuum bubble at time tprime
         # Integrates from self.T_perc
         delta_t = (self.tperc - tprime) / 100
         t_vals = np.arange(tprime, self.tperc + delta_t, delta_t)
-
-        if self.scale_fact_data is not None:
-            return np.sum([delta_t * (self.vw()*self.scale_factor(self.tperc) / self.scale_factor(t)) \
-                        for t in t_vals])
         
         return np.sum([delta_t * (self.vw()*a_ratio_rad(t, self.tperc)) \
                     for t in t_vals])
@@ -317,13 +304,6 @@ class BubbleNucleationQuartic:
         # Uses FKS calculation for survival probability of patches with radius r_fv
         # assume vwall = 1 for the below vacuum fraction
         # Integrand: rate * scale factor^3 * volume factor
-        if self.scale_fact_data is not None:
-            def integrand(tprime):
-                return (-4*pi/3) * self.rate(time_to_temp(tprime, gstar=self.gstar_D + gstar_sm(time_to_temp(tprime)))) \
-                    * np.power(self.scale_factor(tprime) * (self.R_bubble(tprime) + r_fv) / self.scale_factor(self.tperc), 3)
-            res = quad(integrand, self.tc, self.tperc)[0]
-            return np.exp(res)
-
         def integrand(tprime):
             return (-4*pi/3) * self.rate(time_to_temp(tprime, gstar=self.gstar_D + gstar_sm(time_to_temp(tprime)))) \
                 * np.power(a_ratio_rad(self.tperc, tprime) * (self.R_bubble(tprime) + r_fv), 3)
@@ -331,17 +311,11 @@ class BubbleNucleationQuartic:
         return np.exp(res)
 
     def hubble_rate_sq(self, T) -> float:
-        if self.hubble2_data is None:
-            h2_rad = hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
+        h2_rad = hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
 
-            h2_vac = (1/3/M_PL**2) * (-self.veff(self.vev, T))
+        h2_vac = (1/3/M_PL**2) * (-self.veff(self.vev, T))
 
-            return h2_rad + h2_vac
-        else:
-            if (T > self.Tc) or (T < self.Tc / 10):
-                return hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
-            else:
-                return np.interp(T, self.hubble2_data[::-1,0], self.hubble2_data[::-1,1])
+        return h2_rad + h2_vac
 
     def get_Tstar(self) -> float:
         # check SE/T close to T=Tc

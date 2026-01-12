@@ -225,7 +225,7 @@ class BubbleNucleationQuartic:
 
         if self.Tperc is None:
             self.Tstar = self.get_Tstar()
-            self.Tperc = self.Tstar
+            self.Tperc = self.get_Tperc()
             self.tperc = temp_to_time(self.Tperc)
 
         try:
@@ -299,6 +299,62 @@ class BubbleNucleationQuartic:
         
         return np.sum([delta_t * (self.vw()*a_ratio_rad(t, self.tperc)) \
                     for t in t_vals])
+    
+    def R_bubble_temperature(self, Tprime, T, n_samples=100) -> float:
+        # returns radius of FV bubble nucleating at Tprime at later temp T
+        T_vals = np.linspace(T, Tprime, n_samples)  # prefer inexpensive sampling, will get integrated over again late
+        dT = T_vals[1] - T_vals[0]
+        gamma = 1.0
+
+        hubble_vals = np.array([sqrt(self.hubble_rate_sq(T_)) for T_ in T_vals])
+        integrands = self.vw() * power(self.Tc / T_vals, -1/gamma) / (T_vals * hubble_vals * gamma) * dT
+        return np.sum(integrands)
+    
+    def fv_exponent(self, T, n_samples=100) -> float:
+        # returns FV exponent function I(T) for computing percolation with
+        # exp(-I(T)) = 0.7
+        Tprime_vals = np.linspace(T, self.Tc, n_samples)
+        dT = Tprime_vals[1] - Tprime_vals[0]
+        gamma = 1.0
+
+        r_bubble = np.array([self.R_bubble_temperature(Tprime, T) for Tprime in Tprime_vals])
+        rates = self.rate(Tprime_vals)
+        hubble_vals = np.array([sqrt(self.hubble_rate_sq(Tprime)) for Tprime in Tprime_vals])
+
+        integrands = (4*pi/3) * rates * power(r_bubble, 3) \
+            * power(self.Tc / T, 3/gamma) / (Tprime_vals * gamma * hubble_vals) * dT
+        return np.sum(integrands)
+
+    def get_Tperc(self, T_min=None):
+        # binary search on fv_exponent between Tc/1000 and Tc
+        # adjust minimal temperature as needed
+        T_low = 1e-1 * self.Tc
+        if T_min is not None:
+            T_low = T_min
+        T_high = self.Tc
+
+        # check bounds
+        p_fv_high = np.nan_to_num(np.exp(-self.fv_exponent(T_high)))
+        p_fv_low = np.nan_to_num(np.exp(-self.fv_exponent(T_low)))
+        if p_fv_high < 0.7:
+            raise Exception("PercolationError!")
+        if p_fv_low > 0.7:
+            raise Exception("PercolationError!")
+
+        halving_number = 0
+        while(halving_number < 20):
+            halving_number += 1
+            T_trial = (T_high + T_low)/2
+            p_fv = np.nan_to_num(np.exp(-self.fv_exponent(T_trial)))
+            if p_fv > 0.7:
+                T_high = T_trial
+            else:
+                T_low = T_trial
+            
+            if abs(p_fv - 0.7) < 0.1:
+                return T_trial
+
+        return T_trial
 
     def p_surv_false_vacuum(self, r_fv) -> float:
         # Uses FKS calculation for survival probability of patches with radius r_fv

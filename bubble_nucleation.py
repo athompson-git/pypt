@@ -312,8 +312,8 @@ class BubbleNucleationQuartic:
 
     def hubble_rate_sq(self, T) -> float:
         h2_rad = hubble2_rad(T, gstar=gstar_sm(T)+self.gstar_D)
-
-        h2_vac = (1/3/M_PL**2) * (-self.veff(self.vev, T))
+        phic = self.veff.get_vev(T)
+        h2_vac = (1/3/M_PL**2) * (-self.veff(phic, T))
 
         return h2_rad + h2_vac
 
@@ -348,7 +348,7 @@ class BubbleNucleationQuartic:
 
         return (np.pi**2 / 30) * (dgdT * T**4 + 4 * gstar_sm(T) * T**3)
 
-    def d2RhoRdT2(self, T):
+    def d2RhoRdT2(self, T) -> float:
         # second derivative of the radiation density w.r.t. temperature
         return (self.dRhoRdT(T + self.deltaT) - self.dRhoRdT(T)) / self.deltaT
     

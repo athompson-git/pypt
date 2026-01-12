@@ -67,6 +67,10 @@ class FKSCollapse:
 
     def zs(self, E0: float) -> float:
         return self.gamma**2 / abs(E0)
+    
+    def zm(self) -> float:
+        # gets the z value at the maximum of the potential
+        return 0.5 * (np.sqrt(8 + (1 - 0.5 * self.gamma**2)**2) - (1 - 0.5 * self.gamma**2))
 
     def z(self, r: float, M: float) -> float:
         return ((self.HV2 + self.Hsigma2) / (2 * G_NEWTON_FKS * M))**(1/3) * r

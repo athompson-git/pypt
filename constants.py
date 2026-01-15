@@ -65,7 +65,8 @@ T0_SM = 2.3e-4 * eV  # temperature today in GeV
 TIME_TODAY_SEC = 5.0e17
 OMEGA_MATTER = 0.27
 OMEGA_BARYON = 0.17 * OMEGA_MATTER
-OMEGA_DM = OMEGA_MATTER - OMEGA_BARYON
+OMEGA_DM = 0.12
+RHO_CRIT = 1.053672e-5 * GeV / cm**3  # critical density today
 
 
 # conversion between units

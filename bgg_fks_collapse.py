@@ -20,6 +20,7 @@ from scipy.constants import pi
 
 from .constants import *
 from .cosmology_functions import *
+from .bubble_nucleation import BubbleNucleationQuartic
 
 # Constants
 M_PL_FKS = M_PL * np.power(8*pi, -0.5)
@@ -230,5 +231,31 @@ class FKSCollapse:
         zp_values = solution_z.y[1]
 
         return t_values, z_values, zp_values
+    
+    def R_FV_rad(self, t, tPrime):
+        """
+        returns R(t,t') for FV radius nucleated at t' > t
+        assumes rad domination
+        """
+        return 2 * self.vw * sqrt(t) * (sqrt(tPrime) - sqrt(t))
+
+
+# Separate function to calculate the abundance integral
+def get_pbh_abundance(mPBH: float, r_fv: float, bn: BubbleNucleationQuartic) -> float:
+    tperc = temp_to_time(bn.Tperc)
+    tc = bn.tc
+
+    normalization = np.power(HUBBLE, 3) / (4 * np.pi * RHO_CRIT * OMEGA_DM / 3)
+
+    # taking delta function for mass distribution
+    p_surv = bn.p_surv_false_vacuum(r_fv)
+
+    xi = r_fv * bn.hubble_rate_sq(bn.Tperc) * a_ratio_rad(tc, tperc)
+    Npatches = power(xi, -3) * (gstar_sm(0.0)/gstar_sm(bn.Tstar)) \
+                * power(T0_SM * bn.hubble_rate_sq(bn.Tperc) / bn.Tstar / HUBBLE, 3)
+
+
+    return normalization * mPBH * p_surv * Npatches
+
 
 

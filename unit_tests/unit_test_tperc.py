@@ -318,8 +318,6 @@ def plot_fv_exponent(veff, bn=None, n_points=100, verbose=True):
     ax4.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('bubble_nucleation_diagnostics.png', dpi=150)
-    print(f"\n  Plot saved to: bubble_nucleation_diagnostics.png")
     plt.show()
     
     return T_vals, fv_exp_vals, p_fv_vals

@@ -5,7 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(0, '../..')
+sys.path.append('../')
 
 from pypt.ftpot import VEffGeneric
 from pypt.bubble_nucleation import BubbleNucleationQuartic

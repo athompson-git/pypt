@@ -5,16 +5,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.insert(0, '../..')
+sys.path.append('../')
 
 from pypt.ftpot import VEffGeneric
 from pypt.bubble_nucleation import BubbleNucleationQuartic
 from pypt.bgg_fks_collapse import FKSCollapse, get_pbh_abundance
 from pypt.cosmology_functions import hubble2_rad, gstar_sm, temp_to_time, a_ratio_rad
-from pypt.constants import HUBBLE, RHO_CRIT, OMEGA_DM, T0_SM
+from pypt.constants import *
 
 
-def test_pbh_formation(a=0.1, lam=0.061, c=0.249, d=0.596, vev=100.0, 
+def test_pbh_formation(a=1/16, lam=0.061, c=0.1052, d=2.725, vev=1.0, 
                        gstar_D=1.0, verbose=True):
     """
     Test PBH formation calculation with user-specified potential parameters.
@@ -168,7 +168,7 @@ def test_pbh_formation(a=0.1, lam=0.061, c=0.249, d=0.596, vev=100.0,
     print("Step 5: Plotting p_surv_false_vacuum(r)...")
     print("-" * 50)
     
-    r_min = 0.5 * r_fv
+    r_min = 0.001 * r_fv
     r_max = 2.0 * r_fv
     n_points = 50
     
@@ -227,10 +227,10 @@ def test_pbh_formation(a=0.1, lam=0.061, c=0.249, d=0.596, vev=100.0,
     print("\n  Computing individual terms in get_pbh_abundance:")
     
     # 1. Normalization term
-    normalization = np.power(HUBBLE, 3) / (4 * np.pi * RHO_CRIT * OMEGA_DM / 3)
+    normalization = np.power(HUBBLE, 3) / (4 * np.pi * RHO_CRIT_GEV4 * OMEGA_DM / 3)
     print(f"\n  1. Normalization term:")
     print(f"     HUBBLE = {HUBBLE:.6e} GeV")
-    print(f"     RHO_CRIT = {RHO_CRIT:.6e} GeV^4")
+    print(f"     RHO_CRIT = {RHO_CRIT_GEV4:.6e} GeV^4")
     print(f"     OMEGA_DM = {OMEGA_DM:.6f}")
     print(f"     normalization = H^3 / (4*pi*rho_crit*Omega_DM/3)")
     print(f"                   = {normalization:.6e}")
@@ -252,9 +252,9 @@ def test_pbh_formation(a=0.1, lam=0.061, c=0.249, d=0.596, vev=100.0,
     print(f"        = {xi:.6e}")
     
     # 4. N_patches term
-    gstar_ratio = gstar_sm(0.0) / gstar_sm(Tstar)
+    gstar_ratio = gstar_sm(0.0) / gstar_sm(Tperc)
     H2_ratio = bn.hubble_rate_sq(Tperc) / HUBBLE
-    T_ratio = T0_SM / Tstar
+    T_ratio = T0_SM / Tperc
     
     Npatches = np.power(xi, -3) * gstar_ratio * np.power(T_ratio * H2_ratio, 3)
     print(f"\n  4. N_patches term:")
@@ -295,11 +295,11 @@ def test_pbh_formation(a=0.1, lam=0.061, c=0.249, d=0.596, vev=100.0,
 if __name__ == "__main__":
     # Default test parameters - modify these as needed
     params = {
-        'a': 0.1,
-        'lam': 0.061,
-        'c': 0.249,
-        'd': 0.596,
-        'vev': 100.0,
+        'a': 0.0626,
+        'lam': 0.275,
+        'c': 0.1052,
+        'd': 2.725,
+        'vev': 1.0,
         'gstar_D': 1.0,
     }
     

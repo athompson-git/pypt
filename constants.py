@@ -66,8 +66,8 @@ TIME_TODAY_SEC = 5.0e17
 OMEGA_MATTER = 0.27
 OMEGA_BARYON = 0.17 * OMEGA_MATTER
 OMEGA_DM = 0.12
-RHO_CRIT = 1.053672e-5 * GeV / cm**3  # critical density today
-
+RHO_CRIT_GEV_CM3 = 1.053672e-5 * GeV / cm**3  # critical density today
+RHO_CRIT_GEV4 = RHO_CRIT_GEV_CM3 * (HBARC**3)
 
 # conversion between units
 GEV_PER_G = 5.6095887e23  # GeV/g

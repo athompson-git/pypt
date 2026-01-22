@@ -222,7 +222,7 @@ def plot_fv_exponent(veff, bn=None, n_points=100, verbose=True):
         bn_temp = bn
     
     # Temperature range: from Tc down to T0 (or 1% of Tc)
-    T_min = max(1e-2 * veff.Tc, np.sqrt(abs(veff.T0sq)) * 1.01) if veff.T0sq > 0 else 1e-2 * veff.Tc
+    T_min = max(1e-4 * veff.Tc, np.sqrt(abs(veff.T0sq)) * 1.01) if veff.T0sq > 0 else 1e-4 * veff.Tc
     T_max = veff.Tc * 0.999  # slightly below Tc
     
     T_vals = np.linspace(T_min, T_max, n_points)
@@ -268,12 +268,12 @@ def plot_fv_exponent(veff, bn=None, n_points=100, verbose=True):
             print("  No clear crossing of p_fv = 0.7 found")
     
     # Create plots
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8))
     
     # Plot 1: fv_exponent vs T
     ax1 = axes[0, 0]
     valid_mask = np.isfinite(fv_exp_vals)
-    ax1.semilogy(T_vals[valid_mask], fv_exp_vals[valid_mask], 'b-', linewidth=2)
+    ax1.loglog(T_vals[valid_mask], fv_exp_vals[valid_mask], 'b-', linewidth=2)
     ax1.axhline(y=-np.log(0.7), color='r', linestyle='--', label='I(T) for p_fv=0.7')
     ax1.set_xlabel('Temperature T')
     ax1.set_ylabel('I(T) = fv_exponent')
@@ -283,7 +283,7 @@ def plot_fv_exponent(veff, bn=None, n_points=100, verbose=True):
     
     # Plot 2: p_fv = exp(-I) vs T
     ax2 = axes[0, 1]
-    ax2.plot(T_vals, p_fv_vals, 'b-', linewidth=2)
+    ax2.loglog(T_vals, p_fv_vals, 'b-', linewidth=2)
     ax2.axhline(y=0.7, color='r', linestyle='--', label='p_fv = 0.7 (percolation)')
     ax2.set_xlabel('Temperature T')
     ax2.set_ylabel('p_fv = exp(-I(T))')
@@ -326,11 +326,11 @@ def plot_fv_exponent(veff, bn=None, n_points=100, verbose=True):
 if __name__ == "__main__":
     # Default test parameters - modify these as needed
     params = {
-        'a': 0.1,
-        'lam': 0.061,
-        'c': 0.249,
-        'd': 0.596,
-        'vev': 100.0,
+        'a': 0.0626,
+        'lam': 0.275,
+        'c': 0.1052,
+        'd': 2.725,
+        'vev': 1.0,
     }
     
     print("\nRunning bubble nucleation test with default parameters...")
